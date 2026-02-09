@@ -66,6 +66,15 @@ label { width: 64px; }
 input { padding: 8px 10px; font-size: 16px; width: 160px; border: 1px solid #e5e7eb; border-radius: 6px; }
 .success { color: var(--correct); font-weight: bold; }
 
+#celebration-canvas {
+	position: fixed;
+	inset: 0;
+	width: 100vw;
+	height: 100vh;
+	pointer-events: none;
+	z-index: 50;
+}
+
 .guessed-letters { margin-top: 16px; padding: 12px; background: #f9fafb; border-radius: 6px; }
 .guessed-letters h4 { margin: 0 0 8px 0; font-size: 14px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
 .guessed-list { display: flex; flex-wrap: wrap; gap: 6px; }

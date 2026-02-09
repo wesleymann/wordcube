@@ -49,6 +49,10 @@
   <p class="success">Solved! Well done.</p>
 {% endif %}
 
+{% if solved %}
+  <canvas id="celebration-canvas" aria-hidden="true"></canvas>
+{% endif %}
+
 {% if guessed_letters %}
   <div class="guessed-letters">
     <h4>Guessed Letters (Not on Board)</h4>
@@ -76,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const form = document.getElementById('guess-form');
   const boardInputs = Array.from(document.querySelectorAll('.board-input'));
   const board = document.getElementById('board');
+  const celebrationCanvas = document.getElementById('celebration-canvas');
 
   // focus first editable tile
   const firstEditable = boardInputs.find(i => !i.disabled);
@@ -204,6 +209,77 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     // allow form to submit normally
   });
+
+  if (celebrationCanvas) {
+    const ctx = celebrationCanvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const colors = ['#6aaa64', '#c9b458', '#b366cc', '#111827', '#3b82f6'];
+    let particles = [];
+    let startTime = performance.now();
+
+    const resize = () => {
+      celebrationCanvas.width = Math.floor(window.innerWidth * dpr);
+      celebrationCanvas.height = Math.floor(window.innerHeight * dpr);
+      celebrationCanvas.style.width = `${window.innerWidth}px`;
+      celebrationCanvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const spawnBurst = (x, y) => {
+      const count = 40;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 3;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          maxLife: 60 + Math.random() * 30,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: 2 + Math.random() * 2
+        });
+      }
+    };
+
+    const tick = () => {
+      const now = performance.now();
+      const elapsed = now - startTime;
+      ctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
+      if (elapsed < 2200 && Math.random() < 0.12) {
+        const x = 60 + Math.random() * (window.innerWidth - 120);
+        const y = 80 + Math.random() * (window.innerHeight * 0.4);
+        spawnBurst(x, y);
+      }
+
+      particles = particles.filter(p => p.life < p.maxLife);
+      for (const p of particles) {
+        p.life += 1;
+        p.vy += 0.04;
+        p.x += p.vx;
+        p.y += p.vy;
+        const alpha = 1 - p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      if (elapsed < 2600 || particles.length > 0) {
+        requestAnimationFrame(tick);
+      } else {
+        celebrationCanvas.style.display = 'none';
+      }
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+    spawnBurst(window.innerWidth / 2, window.innerHeight / 3);
+    requestAnimationFrame(tick);
+  }
 });
 </script>
 
