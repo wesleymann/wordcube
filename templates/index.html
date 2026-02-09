@@ -199,24 +199,27 @@ document.addEventListener('DOMContentLoaded', function(){
 <h3>Attempts</h3>
 {% if attempts %}
   <div class="attempts">
-  {% for guess in attempts %}
+  {% for _guess in attempts %}
     {% set aidx = loop.index0 %}
-    <div class="attempt-row">
-      {% for i in range(4) %}
-        {% set fb = feedbacks[aidx][i] %}
-        {% set cls = 'absent' %}
-        {% if fb == 'G' %}
-          {% set cls = 'correct' %}
-        {% elif fb == 'Y' %}
-          {% set cls = 'present' %}
-        {% elif fb == 'P' %}
-          {% set cls = 'elsewhere' %}
-        {% endif %}
-        {% if cls == 'absent' %}
-          <div class="tile {{ cls }}">&nbsp;</div>
-        {% else %}
-          <div class="tile {{ cls }}">{{ guess[i].upper() }}</div>
-        {% endif %}
+    <div class="attempt-grid">
+      {% for r in range(4) %}
+        <div class="attempt-row">
+          {% set fb_row = feedbacks[aidx][r] %}
+          {% for c in range(4) %}
+            {% set fb = fb_row[c] if fb_row|length > c else '_' %}
+            {% set cls = 'absent' %}
+            {% if (r, c) in revealed %}
+              {% set cls = 'revealed' %}
+            {% elif fb == 'G' %}
+              {% set cls = 'correct' %}
+            {% elif fb == 'Y' %}
+              {% set cls = 'present' %}
+            {% elif fb == 'P' %}
+              {% set cls = 'elsewhere' %}
+            {% endif %}
+            <div class="attempt-tile {{ cls }}"></div>
+          {% endfor %}
+        </div>
       {% endfor %}
     </div>
   {% endfor %}
