@@ -61,14 +61,13 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
     """
     result = ['_'] * 4
     
-    # Collect all letters that have been marked green in any previous attempt
-    green_letters_found = set()
+    # Track which specific (row, col) positions have been correctly placed
+    correctly_placed_positions = set()
     for attempt_idx, fb_rows in enumerate(feedbacks):
         for row_idx_fb, fb_chars in enumerate(fb_rows):
             for char_idx, fb_char in enumerate(fb_chars):
                 if fb_char == 'G':
-                    letter = attempts[attempt_idx][row_idx_fb][char_idx]
-                    green_letters_found.add(letter)
+                    correctly_placed_positions.add((row_idx_fb, char_idx))
     
     # Build set of revealed positions for this row
     revealed_in_row = {c for (r, c) in revealed if r == row_idx}
@@ -101,8 +100,21 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
         if result[i] == 'G':
             continue  # already correct, skip
         
-        # Skip if this letter has already been found correctly
-        if ch in green_letters_found:
+        # Count remaining instances of this letter that haven't been found
+        # Include the current row's correct positions from this guess
+        remaining_positions = []
+        for r in range(4):
+            for c in range(4):
+                # Skip if already found in previous attempts OR correctly guessed in current row
+                is_found_previously = (r, c) in correctly_placed_positions
+                is_correct_in_current_guess = (r == row_idx and c < len(result) and result[c] == 'G' and guess[c] == ch)
+                is_revealed = (r, c) in revealed
+                
+                if cube[r][c] == ch and not is_found_previously and not is_correct_in_current_guess and not is_revealed:
+                    remaining_positions.append((r, c))
+        
+        # If no remaining instances, mark as absent
+        if not remaining_positions:
             result[i] = '_'
             continue
         
@@ -113,15 +125,13 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
             result[i] = '_'
             continue
         
-        # Check: in same row (but not revealed positions)?
-        in_row = ch in [cube[row_idx][c] for c in range(4) if c not in revealed_in_row]
-        
-        # Check: in same column (but not revealed positions)?
-        in_col = any(ch == cube[r][col_idx] for r in range(4) if r != row_idx and (r, col_idx) not in revealed)
+        # Use remaining positions (not found and not revealed) to decide Y/P
+        in_row = any(r == row_idx for (r, c) in remaining_positions)
+        in_col = any(c == col_idx for (r, c) in remaining_positions)
         
         if in_row or in_col:
             result[i] = 'Y'
-        elif ch in cube_flat:
+        elif remaining_positions:
             result[i] = 'P'
         else:
             result[i] = '_'
@@ -188,7 +198,16 @@ def guess():
     feedbacks.append(fbs)
     session['attempts'] = attempts
     session['feedbacks'] = feedbacks
-    # Extract absent letters from all feedbacks
+    
+    # Track which positions have been correctly placed
+    correctly_placed_positions = set()
+    for attempt_idx, fb_rows in enumerate(feedbacks):
+        for row_idx_fb, fb_chars in enumerate(fb_rows):
+            for char_idx, fb_char in enumerate(fb_chars):
+                if fb_char == 'G':
+                    correctly_placed_positions.add((row_idx_fb, char_idx))
+    
+    # Extract letters that got '_' feedback
     guessed_letters = []
     for attempt_idx, fb_rows in enumerate(feedbacks):
         for row_idx, fb_chars in enumerate(fb_rows):
@@ -196,7 +215,18 @@ def guess():
                 if fb_char == '_':
                     letter = attempts[attempt_idx][row_idx][char_idx]
                     if letter and letter != ' ' and letter not in guessed_letters:
-                        guessed_letters.append(letter)
+                        # Check if there are any remaining instances of this letter
+                        remaining = False
+                        for r in range(4):
+                            for c in range(4):
+                                if cube[r][c] == letter and (r, c) not in correctly_placed_positions and (r, c) not in revealed:
+                                    remaining = True
+                                    break
+                            if remaining:
+                                break
+                        # Add to guessed letters if no remaining instances
+                        if not remaining:
+                            guessed_letters.append(letter)
     session['guessed_letters'] = guessed_letters
     # solved if all green
     if all(fb == 'G' * 4 for fb in fbs):
