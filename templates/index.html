@@ -49,6 +49,17 @@
   <p class="success">Solved! Well done.</p>
 {% endif %}
 
+{% if guessed_letters %}
+  <div class="guessed-letters">
+    <h4>Guessed Letters (Not on Board)</h4>
+    <div class="guessed-list">
+      {% for letter in guessed_letters|sort %}
+        <div class="guessed-letter">{{ letter.upper() }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
 <h3>Make a Guess</h3>
 <form id="guess-form" method="post" action="{{ url_for('guess') }}">
   <!-- hidden row fields populated by JS from board inputs -->
@@ -226,17 +237,6 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
 {% else %}
   <p>No attempts yet.</p>
-{% endif %}
-
-{% if guessed_letters %}
-  <div class="guessed-letters">
-    <h4>Guessed Letters (Not on Board)</h4>
-    <div class="guessed-list">
-      {% for letter in guessed_letters %}
-        <div class="guessed-letter">{{ letter.upper() }}</div>
-      {% endfor %}
-    </div>
-  </div>
 {% endif %}
 
 {% endblock %}

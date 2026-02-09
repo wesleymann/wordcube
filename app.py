@@ -195,7 +195,7 @@ def guess():
             for char_idx, fb_char in enumerate(fb_chars):
                 if fb_char == '_':
                     letter = attempts[attempt_idx][row_idx][char_idx]
-                    if letter not in guessed_letters:
+                    if letter and letter != ' ' and letter not in guessed_letters:
                         guessed_letters.append(letter)
     session['guessed_letters'] = guessed_letters
     # solved if all green
