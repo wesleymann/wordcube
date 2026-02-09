@@ -49,6 +49,10 @@
   <p class="success">Solved! Well done.</p>
 {% endif %}
 
+<div class="timer" id="timer" data-start="{{ start_time|default('', true) }}" data-end="{{ end_time|default('', true) }}">
+  Time: <span id="timer-value">00:00</span>
+</div>
+
 {% if solved %}
   <canvas id="celebration-canvas" aria-hidden="true"></canvas>
 {% endif %}
@@ -81,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const boardInputs = Array.from(document.querySelectorAll('.board-input'));
   const board = document.getElementById('board');
   const celebrationCanvas = document.getElementById('celebration-canvas');
+  const timer = document.getElementById('timer');
 
   // focus first editable tile
   const firstEditable = boardInputs.find(i => !i.disabled);
@@ -209,6 +214,31 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     // allow form to submit normally
   });
+
+  if (timer) {
+    const timerValue = document.getElementById('timer-value');
+    const start = parseFloat(timer.dataset.start);
+    const end = parseFloat(timer.dataset.end);
+
+    const formatTime = (seconds) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+
+    if (!isNaN(start)) {
+      const update = () => {
+        const now = isNaN(end) ? (Date.now() / 1000) : end;
+        const elapsed = Math.max(0, now - start);
+        timerValue.textContent = formatTime(elapsed);
+      };
+
+      update();
+      if (isNaN(end)) {
+        setInterval(update, 500);
+      }
+    }
+  }
 
   if (celebrationCanvas) {
     const ctx = celebrationCanvas.getContext('2d');

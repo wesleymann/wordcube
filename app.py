@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import random
 import os
+import time
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -149,12 +150,15 @@ def index():
     feedbacks = session.get('feedbacks', [])
     solved = session.get('solved', False)
     guessed_letters = session.get('guessed_letters', [])
+    start_time = session.get('start_time')
+    end_time = session.get('end_time')
     # show shake animation once if the last submission was incorrect
     shake = session.pop('shake', False)
     return render_template('index.html', cube=cube, revealed=revealed,
                            attempts=attempts, feedbacks=feedbacks,
                            max_attempts=MAX_ATTEMPTS, solved=solved,
-                           shake=shake, guessed_letters=guessed_letters)
+                           shake=shake, guessed_letters=guessed_letters,
+                           start_time=start_time, end_time=end_time)
 
 
 @app.route('/new')
@@ -172,6 +176,8 @@ def new_game():
     session['feedbacks'] = []
     session['solved'] = False
     session['guessed_letters'] = []
+    session['start_time'] = time.time()
+    session['end_time'] = None
     return redirect(url_for('index'))
 
 
@@ -231,6 +237,8 @@ def guess():
     # solved if all green
     if all(fb == 'G' * 4 for fb in fbs):
         session['solved'] = True
+        if not session.get('end_time'):
+            session['end_time'] = time.time()
     else:
         # trigger a one-time shake animation client-side
         session['shake'] = True
@@ -244,6 +252,8 @@ def reveal_answer():
         return redirect(url_for('new_game'))
     session['revealed'] = [(r, c) for r in range(4) for c in range(4)]
     session['solved'] = True
+    if not session.get('end_time'):
+        session['end_time'] = time.time()
     return redirect(url_for('index'))
 
 
