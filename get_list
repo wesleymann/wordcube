@@ -1,0 +1,15 @@
+from wordfreq import zipf_frequency, top_n_list
+
+# returns most common words overall
+try:
+	all_common = top_n_list("en", n_top=50000)
+except TypeError:
+	# older/newer versions accept the count as a positional arg
+	all_common = top_n_list("en", 50000)
+
+words = [w for w in all_common if len(w) == 4]
+out_file = 'word_list_wordfreq.txt'
+with open(out_file, 'w') as f:
+	for w in words:
+		f.write(w + '\n')
+print(f"Wrote {len(words)} 4-letter words to {out_file}")

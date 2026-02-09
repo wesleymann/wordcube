@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block content %}
+
+<p>
+  <a href="{{ url_for('new_game') }}">Start New Game</a>
+  &nbsp;|&nbsp;
+  <a href="{{ url_for('reveal_answer') }}">Reveal Answer</a>
+</p>
+
+<h3>Cube (revealed letters shown)</h3>
+{# Compute last attempt/feedback if present #}
+{% set last_attempt = attempts[-1] if attempts else None %}
+{% set last_feedback = feedbacks[-1] if feedbacks else None %}
+
+<div id="board" class="cube-grid {% if shake %}shake{% endif %}">
+  {% for r in range(4) %}
+    <div class="cube-row">
+      {% for c in range(4) %}
+        {% set ch = cube[r][c].upper() %}
+        {% if (r, c) in revealed %}
+          <input class="board-input revealed" value="{{ ch }}" disabled>
+        {% else %}
+          {# If there was a last attempt, use its letter and feedback for this cell #}
+          {% if last_attempt and last_feedback %}
+            {% set guessed_row = last_attempt[r] %}
+            {% set fb_row = last_feedback[r] %}
+            {% set letter = guessed_row[c].upper() if guessed_row|length > c else '' %}
+            {% set fbchar = fb_row[c] if fb_row|length > c else '_' %}
+            {% if fbchar == 'G' %}
+              <input class="board-input correct" value="{{ letter }}" disabled data-fb="G">
+            {% elif fbchar == 'Y' %}
+              <input class="board-input present" maxlength="1" value="{{ letter }}" data-fb="Y">
+            {% elif fbchar == 'P' %}
+              <input class="board-input elsewhere" maxlength="1" value="{{ letter }}" data-fb="P">
+            {% else %}
+              {# show the previous guessed letter in black so it's visible on next guess #}
+              <input class="board-input absent" maxlength="1" value="{{ letter }}" data-fb="_">
+            {% endif %}
+          {% else %}
+            <input class="board-input" maxlength="1" value="" data-fb="_">
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+
+{% if solved %}
+  <p class="success">Solved! Well done.</p>
+{% endif %}
+
+<h3>Make a Guess</h3>
+<form id="guess-form" method="post" action="{{ url_for('guess') }}">
+  <!-- hidden row fields populated by JS from board inputs -->
+  {% for i in range(4) %}
+    <input type="hidden" name="row{{ i }}" id="row{{ i }}-hidden">
+  {% endfor %}
+  <div style="margin-top:12px">
+    <button type="submit">Submit Guess</button>
+  </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const form = document.getElementById('guess-form');
+  const boardInputs = Array.from(document.querySelectorAll('.board-input'));
+  const board = document.getElementById('board');
+
+  // focus first editable tile
+  const firstEditable = boardInputs.find(i => !i.disabled);
+  if (firstEditable) firstEditable.focus();
+
+  // remove shake class after animation
+  if (board && board.classList.contains('shake')) {
+    board.addEventListener('animationend', () => board.classList.remove('shake'));
+  }
+
+  boardInputs.forEach((inp, idx) => {
+    if (inp.disabled) return;
+
+    // initialize class based on data-fb
+    const fb = inp.dataset.fb || '_';
+    if (fb === 'G') { inp.classList.add('correct'); }
+    else if (fb === 'Y') { inp.classList.add('present'); }
+    else if (fb === 'P') { inp.classList.add('elsewhere'); }
+    else { inp.classList.add('absent'); }
+
+    // Position cursor after existing letter when focused
+    inp.addEventListener('focus', () => {
+      if (inp.value) {
+        // Use setTimeout to ensure this happens after browser's default focus behavior
+        setTimeout(() => {
+          inp.setSelectionRange(inp.value.length, inp.value.length);
+        }, 0);
+      }
+    });
+
+    // Handle mouse clicks specifically - browser places cursor where clicked
+    inp.addEventListener('click', () => {
+      if (inp.value) {
+        setTimeout(() => {
+          inp.setSelectionRange(inp.value.length, inp.value.length);
+        }, 0);
+      }
+    });
+
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, '');
+      // if cleared, make white/black absent state so user can see empty white box
+      if (!inp.value) {
+        inp.classList.remove('present');
+        inp.classList.remove('elsewhere');
+        inp.classList.add('absent');
+      } else {
+        // user typed something — remove previous feedback coloring
+        inp.classList.remove('absent');
+        inp.classList.remove('present');
+        inp.classList.remove('elsewhere');
+      }
+      // move to next editable tile
+      let j = idx + 1;
+      while (j < boardInputs.length && boardInputs[j].disabled) j++;
+      if (inp.value && j < boardInputs.length) boardInputs[j].focus();
+    });
+
+    inp.addEventListener('keydown', (e) => {
+      // Allow backspace to delete normally when text is selected
+      if (e.key === 'Backspace') {
+        if (inp.value) {
+          // Text exists - allow default backspace behavior (delete)
+          return;
+        } else {
+          // No text - go to previous tile
+          let j = idx - 1;
+          while (j >= 0 && boardInputs[j].disabled) j--;
+          if (j >= 0) boardInputs[j].focus();
+        }
+      }
+      if (e.key === 'ArrowLeft') {
+        let j = idx - 1;
+        while (j >= 0 && boardInputs[j].disabled) j--;
+        if (j >= 0) boardInputs[j].focus();
+      }
+      if (e.key === 'ArrowRight') {
+        let j = idx + 1;
+        while (j < boardInputs.length && boardInputs[j].disabled) j++;
+        if (j < boardInputs.length) boardInputs[j].focus();
+      }
+      // Up arrow: move to same column in row above, skipping disabled tiles
+      if (e.key === 'ArrowUp') {
+        const col = idx % 4;
+        const row = Math.floor(idx / 4);
+        if (row > 0) {
+          let targetRow = row - 1;
+          let targetIdx = targetRow * 4 + col;
+          while (targetRow >= 0 && boardInputs[targetIdx].disabled) {
+            targetRow--;
+            targetIdx = targetRow * 4 + col;
+          }
+          if (targetRow >= 0 && targetIdx >= 0 && targetIdx < boardInputs.length) {
+            boardInputs[targetIdx].focus();
+          }
+        }
+      }
+      // Down arrow: move to same column in row below, skipping disabled tiles
+      if (e.key === 'ArrowDown') {
+        const col = idx % 4;
+        const row = Math.floor(idx / 4);
+        if (row < 3) {
+          let targetRow = row + 1;
+          let targetIdx = targetRow * 4 + col;
+          while (targetRow <= 3 && boardInputs[targetIdx].disabled) {
+            targetRow++;
+            targetIdx = targetRow * 4 + col;
+          }
+          if (targetRow <= 3 && targetIdx < boardInputs.length) {
+            boardInputs[targetIdx].focus();
+          }
+        }
+      }
+    });
+  });
+
+  form.addEventListener('submit', (e) => {
+    for (let r = 0; r < 4; r++) {
+      let txt = '';
+      for (let c = 0; c < 4; c++) {
+        const idx = r*4 + c;
+        txt += (boardInputs[idx].value || ' ');
+      }
+      // Keep spaces as-is, only lowercase letters (don't remove spaces)
+      document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
+    }
+    // allow form to submit normally
+  });
+});
+</script>
+
+<h3>Attempts</h3>
+{% if attempts %}
+  <div class="attempts">
+  {% for guess in attempts %}
+    {% set aidx = loop.index0 %}
+    <div class="attempt-row">
+      {% for i in range(4) %}
+        {% set fb = feedbacks[aidx][i] %}
+        {% set cls = 'absent' %}
+        {% if fb == 'G' %}
+          {% set cls = 'correct' %}
+        {% elif fb == 'Y' %}
+          {% set cls = 'present' %}
+        {% elif fb == 'P' %}
+          {% set cls = 'elsewhere' %}
+        {% endif %}
+        {% if cls == 'absent' %}
+          <div class="tile {{ cls }}">&nbsp;</div>
+        {% else %}
+          <div class="tile {{ cls }}">{{ guess[i].upper() }}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+{% else %}
+  <p>No attempts yet.</p>
+{% endif %}
+
+{% if guessed_letters %}
+  <div class="guessed-letters">
+    <h4>Guessed Letters (Not on Board)</h4>
+    <div class="guessed-list">
+      {% for letter in guessed_letters %}
+        <div class="guessed-letter">{{ letter.upper() }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}
