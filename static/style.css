@@ -4,9 +4,9 @@
 	--text: #111827;
 	--muted: #6b7280;
 	--tile-border: #d3d6da;
-	--correct: #6aaa64;
-	--present: #c9b458;
-	--elsewhere: #b366cc;
+	--correct: #22c55e;
+	--present: #eab308;
+	--elsewhere: #a855f7;
 	--absent: #787c7e;
 }
 
@@ -85,5 +85,17 @@ input { padding: 8px 10px; font-size: 16px; width: 160px; border: 1px solid #e5e
 .guessed-letters { margin-top: 16px; padding: 12px; background: #f9fafb; border-radius: 6px; }
 .guessed-letters h4 { margin: 0 0 8px 0; font-size: 14px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
 .guessed-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.guessed-letter { padding: 6px 10px; background: var(--absent); color: #fff; border-radius: 4px; font-size: 14px; font-weight: 600; }
+.guessed-letter { padding: 6px 10px; background: #ffffff; color: #000000; border: 2px solid #d1d5db; border-radius: 4px; font-size: 14px; font-weight: 700; }
+
+/* Welcome Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--panel); max-width: 480px; margin: 20px; padding: 28px; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+.modal h2 { margin: 0 0 16px 0; font-size: 24px; }
+.modal p { margin: 12px 0; line-height: 1.6; }
+.example-tile { display: inline-block; width: 32px; height: 32px; line-height: 32px; text-align: center; border-radius: 4px; font-weight: 700; color: #fff; margin: 0 4px; vertical-align: middle; }
+.example-tile.correct { background: var(--correct); }
+.example-tile.present { background: var(--present); }
+.example-tile.elsewhere { background: var(--elsewhere); }
+.modal button { width: 100%; padding: 12px; background: var(--text); color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+.modal button:hover { opacity: 0.9; }
 
