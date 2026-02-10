@@ -349,8 +349,10 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="attempt-grid">
       {% for r in range(4) %}
         <div class="attempt-row">
+          {% set guess_row = attempts[aidx][r] %}
           {% set fb_row = feedbacks[aidx][r] %}
           {% for c in range(4) %}
+            {% set letter = guess_row[c].upper() if guess_row|length > c else '' %}
             {% set fb = fb_row[c] if fb_row|length > c else '_' %}
             {% set cls = 'absent' %}
             {% if (r, c) in revealed %}
@@ -362,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function(){
             {% elif fb == 'P' %}
               {% set cls = 'elsewhere' %}
             {% endif %}
-            <div class="attempt-tile {{ cls }}"></div>
+            <div class="attempt-tile {{ cls }}">{{ letter }}</div>
           {% endfor %}
         </div>
       {% endfor %}

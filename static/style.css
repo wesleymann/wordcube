@@ -24,12 +24,12 @@ body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvet
 .attempts { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .attempt-grid { display: inline-block; padding: 4px; border-radius: 6px; background: #f9fafb; }
 .attempt-row { display: flex; justify-content: center; gap: 3px; margin: 3px 0; }
-.attempt-tile { width: 18px; height: 18px; border-radius: 3px; background: #fff; border: 1px solid #e5e7eb; box-sizing: border-box; }
+.attempt-tile { width: 18px; height: 18px; border-radius: 3px; background: #fff; border: 1px solid #e5e7eb; box-sizing: border-box; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; text-transform: uppercase; }
 .attempt-tile.correct { background: var(--correct); border: none; }
 .attempt-tile.present { background: var(--present); border: none; }
 .attempt-tile.elsewhere { background: var(--elsewhere); border: none; }
 .attempt-tile.revealed { background: #111827; border: none; }
-.attempt-tile.absent { background: #fff; border: 1px solid #e5e7eb; }
+.attempt-tile.absent { background: #fff; border: 1px solid #e5e7eb; color: #000; }
 .tile.correct { background: var(--correct); color: #fff; border: none; }
 .tile.present { background: var(--present); color: #fff; border: none; }
 .tile.absent { background: #fff; color: transparent; border: 2px solid #e5e7eb; }
