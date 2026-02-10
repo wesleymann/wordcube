@@ -49,96 +49,98 @@ def compute_feedback(guess, solution):
     return ''.join(result)
 
 
-def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks):
-    """
-    Enhanced feedback with Purple highlighting.
-    - 'G' = correct position
-    - 'Y' = present in the same row or column (wrong position)
-    - 'P' = present elsewhere on grid (not in row/column)
-    - '_' = not on grid at all
+def compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks):
+    """Compute feedback for all 4 rows, including previously found correct positions"""
+    all_feedback = []
     
-    Ignores revealed (black) letters and letters already marked green in any previous attempt.
-    Treats spaces as empty (not matching anything).
+    for row_idx in range(4):
+        fb = compute_feedback_enhanced(guesses[row_idx], cube[row_idx], cube, row_idx, revealed, attempts, feedbacks, all_feedback)
+        all_feedback.append(fb)
+    
+    return all_feedback
+
+
+def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, current_feedback):
+    """
+    Three-pass feedback logic:
+    Pass 1 (Green): Mark all letters that are correct at this position
+    Pass 2 (Yellow): Mark letters that are NOT green, AND match elsewhere in same row/column, AND that instance is not already green
+    Pass 3 (Purple): Mark letters that are NOT green/yellow, BUT exist somewhere on the puzzle
+    Revealed positions are shown as '_' (absent/black) regardless of feedback type.
     """
     result = ['_'] * 4
+    revealed_set = set(revealed)
+    revealed_in_row = {c for (r, c) in revealed if r == row_idx}
     
-    # Track which specific (row, col) positions have been correctly placed
-    correctly_placed_positions = set()
+    # Collect all green positions from previous attempts
+    all_greens = set()
     for attempt_idx, fb_rows in enumerate(feedbacks):
         for row_idx_fb, fb_chars in enumerate(fb_rows):
             for char_idx, fb_char in enumerate(fb_chars):
                 if fb_char == 'G':
-                    correctly_placed_positions.add((row_idx_fb, char_idx))
+                    all_greens.add((row_idx_fb, char_idx))
     
-    # Build set of revealed positions for this row
-    revealed_in_row = {c for (r, c) in revealed if r == row_idx}
+    # Include greens from current submission rows already processed
+    for row_idx_fb, fb_chars in enumerate(current_feedback):
+        for char_idx, fb_char in enumerate(fb_chars):
+            if fb_char == 'G':
+                all_greens.add((row_idx_fb, char_idx))
     
-    # First pass: mark correct positions (skip spaces)
+    # PASS 1: Mark correct positions (green)
     for i, ch in enumerate(guess):
         if ch == ' ':
             result[i] = '_'
         elif ch == solution[i]:
             result[i] = 'G'
+            all_greens.add((row_idx, i))
     
-    # Build grid without revealed letters for yellow/purple checks
-    cube_for_check = []
-    for r in range(4):
-        row_for_check = ''
-        for c in range(4):
-            if (r, c) not in revealed:
-                row_for_check += cube[r][c]
-            else:
-                row_for_check += ''  # skip revealed positions
-        cube_for_check.append(row_for_check)
-    
-    cube_flat = ''.join(cube_for_check)
-    
-    # Second pass: check for yellow/purple (skip spaces, skip letters already green)
+    # PASS 2: Mark yellow (in same row or column, but not green, AND not all instances matched)
     for i, ch in enumerate(guess):
-        if ch == ' ':
-            result[i] = '_'
+        if ch == ' ' or result[i] == 'G':
             continue
-        if result[i] == 'G':
-            continue  # already correct, skip
         
-        # Count remaining instances of this letter that haven't been found
-        # Include the current row's correct positions from this guess
-        remaining_positions = []
+        # Check same row: does this letter exist elsewhere in the row AND not already matched green?
+        in_row = False
+        for c in range(4):
+            if c == i or (row_idx, c) in revealed_set:
+                continue
+            if cube[row_idx][c] == ch and (row_idx, c) not in all_greens:
+                in_row = True
+                break
+        
+        # Check same column: does this letter exist elsewhere (other rows) AND not already matched green?
+        in_col = False
         for r in range(4):
-            for c in range(4):
-                # Skip if already found in previous attempts OR correctly guessed in current row
-                is_found_previously = (r, c) in correctly_placed_positions
-                is_correct_in_current_guess = (r == row_idx and c < len(result) and result[c] == 'G' and guess[c] == ch)
-                is_revealed = (r, c) in revealed
-                
-                if cube[r][c] == ch and not is_found_previously and not is_correct_in_current_guess and not is_revealed:
-                    remaining_positions.append((r, c))
-        
-        # If no remaining instances, mark as absent
-        if not remaining_positions:
-            result[i] = '_'
-            continue
-        
-        col_idx = i
-        
-        # Skip if this position is revealed
-        if i in revealed_in_row:
-            result[i] = '_'
-            continue
-        
-        # Use remaining positions (not found and not revealed) to decide Y/P
-        in_row = any(r == row_idx for (r, c) in remaining_positions)
-        in_col = any(c == col_idx for (r, c) in remaining_positions)
+            if r == row_idx or (r, i) in revealed_set:
+                continue
+            if cube[r][i] == ch and (r, i) not in all_greens:
+                in_col = True
+                break
         
         if in_row or in_col:
             result[i] = 'Y'
-        elif remaining_positions:
-            result[i] = 'P'
-        else:
-            result[i] = '_'
+    
+    # PASS 3: Mark purple (exists on puzzle, but not in same row/col, not green, not yellow)
+    for i, ch in enumerate(guess):
+        if ch == ' ' or result[i] in ['G', 'Y']:
+            continue
+        
+        # Check if letter exists anywhere else on the grid (not in same row/col, not revealed, not already green)
+        found_elsewhere = False
+        for r in range(4):
+            for c in range(4):
+                if cube[r][c] == ch and (r, c) not in revealed_set and (r, c) not in all_greens:
+                    # Skip current position and same row/col (those were checked in yellow)
+                    if r == row_idx or c == i:
+                        continue
+                    found_elsewhere = True
+                    break
+            if found_elsewhere:
+                break
+        
+        result[i] = 'P' if found_elsewhere else '_'
     
     return ''.join(result)
-
 
 @app.route('/')
 def index():
@@ -199,7 +201,9 @@ def guess():
     revealed = set(tuple(p) for p in session.get('revealed', []))
     attempts = session.get('attempts', [])
     feedbacks = session.get('feedbacks', [])
-    fbs = [compute_feedback_enhanced(guesses[i], cube[i], cube, i, revealed, attempts, feedbacks) for i in range(4)]
+    
+    fbs = compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks)
+    
     attempts.append(guesses)
     feedbacks.append(fbs)
     session['attempts'] = attempts

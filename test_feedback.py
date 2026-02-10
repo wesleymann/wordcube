@@ -20,7 +20,7 @@ def test_multiple_letter_instances():
     attempts = []
     feedbacks = []
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 1a - Guess 'mask' for row 0: {fb}")
     assert fb == 'GGGG', f"Expected 'GGGG', got '{fb}'"
     
@@ -33,7 +33,7 @@ def test_multiple_letter_instances():
     solution = 'area'
     row_idx = 1
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 1b - Guess 'xaxx' for row 1 (solution 'area'), A at (0,1) already found: {fb}")
     # Position 1 has 'a' but solution wants 'r', so should be yellow
     # A still appears at (1,0), (1,2), (2,1), (3,1) - (0,1) is found
@@ -49,7 +49,7 @@ def test_multiple_letter_instances():
     solution = 'area'
     row_idx = 1
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 1c - Guess 'axxx' for row 1, A at (0,1) found: {fb}")
     # A at position 0 is correct for 'area', should be green
     assert fb[0] == 'G', f"Expected position 0 to be 'G', got '{fb[0]}'"
@@ -74,7 +74,7 @@ def test_multiple_letter_instances():
     solution = 'mask'
     row_idx = 0
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 1d - Guess 'axxx' after all A's found: {fb}")
     # All A's are accounted for, so this A should be '_'
     assert fb[0] == '_', f"Expected position 0 to be '_', got '{fb[0]}'"
@@ -96,7 +96,7 @@ def test_letter_not_on_board():
     attempts = []
     feedbacks = []
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 2 - Guess 'xxxx' for 'mask': {fb}")
     assert fb == '____', f"Expected '____', got '{fb}'"
 
@@ -120,7 +120,7 @@ def test_remaining_positions_only_elsewhere():
     solution = 'pope'
     row_idx = 1
 
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 2b - Guess 'xtxx' with remaining T elsewhere: {fb}")
     # T should be purple because only remaining T is elsewhere
     assert fb[1] == 'P', f"Expected position 1 to be 'P', got '{fb[1]}'"
@@ -150,7 +150,7 @@ def test_all_instances_found():
     row_idx = 0
     revealed = set()
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 3 - Guess 'eask' when all E's found: {fb}")
     # E appears 3 times total (mine[3], edge[0], edge[3])
     # If all 3 are found, additional E should be '_'
@@ -178,7 +178,7 @@ def test_revealed_positions():
     solution = 'mask'
     row_idx = 0
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 4 - Guess 'xmxx' with M revealed elsewhere: {fb}")
     # M is in wrong position but in same row, should be yellow
     assert fb == '_Y__', f"Expected '_Y__', got '{fb}'"
@@ -200,7 +200,7 @@ def test_yellow_in_same_row():
     attempts = []
     feedbacks = []
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 5 - Guess 'smxx' for 'mask': {fb}")
     # S is in row (position 2), M is in row (position 0)
     assert fb == 'YY__', f"Expected 'YY__', got '{fb}'"
@@ -224,7 +224,7 @@ def test_purple_elsewhere():
     attempts = []
     feedbacks = []
     
-    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks)
+    fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 6 - Guess 'nxxx' for 'mask': {fb}")
     # N is elsewhere (row 2, col 2), not in row 0 or col 0
     assert fb == 'P___', f"Expected 'P___', got '{fb}'"
