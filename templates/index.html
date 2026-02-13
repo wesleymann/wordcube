@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
     const letterState = {};
     boardInputs.forEach((inp) => {
+      if (inp.disabled) return; // skip revealed tiles
       const letter = (inp.value || '').toUpperCase();
       const fb = inp.dataset.fb || '_';
       if (!letter) return;

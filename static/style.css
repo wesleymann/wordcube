@@ -78,18 +78,18 @@ input { padding: 8px 10px; font-size: 16px; width: 160px; border: 1px solid #e5e
 
 .keyboard { margin: 18px 0 8px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .key-row { display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; }
-.key { min-width: 32px; height: 44px; padding: 0 10px; border-radius: 6px; border: 1px solid #e5e7eb; background: #f3f4f6; color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer; text-transform: uppercase; box-shadow: 0 2px 6px rgba(15,23,42,0.08); }
+.key { min-width: 44px; height: 52px; padding: 0 12px; border-radius: 6px; border: 1px solid #e5e7eb; background: #f3f4f6; color: var(--text); font-weight: 700; font-size: 16px; cursor: pointer; text-transform: uppercase; box-shadow: 0 2px 6px rgba(15,23,42,0.08); }
 .key:hover { transform: translateY(-1px); }
 .key:active { transform: translateY(0); box-shadow: 0 1px 4px rgba(15,23,42,0.1); }
-.key-wide { min-width: 64px; }
+.key-wide { min-width: 80px; }
 .key.correct { background: var(--correct); color: var(--white); border: none; }
 .key.present { background: var(--present); color: var(--white); border: none; }
 .key.elsewhere { background: var(--elsewhere); color: var(--white); border: none; }
 .key.absent { background: #d1d5db; color: #6b7280; border: none; }
 
 @media (max-width: 420px) {
-	.key { min-width: 28px; height: 40px; font-size: 12px; padding: 0 8px; }
-	.key-wide { min-width: 56px; }
+	.key { min-width: 36px; height: 46px; font-size: 14px; padding: 0 8px; }
+	.key-wide { min-width: 68px; }
 }
 
 .timer {

@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import random
 import os
 import time
+import hashlib
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
@@ -77,6 +79,40 @@ def compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks):
         all_feedback.append(fb)
 
     return all_feedback
+
+
+def get_daily_seed():
+    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    seed = int(hashlib.sha256(date_str.encode()).hexdigest(), 16)
+    return date_str, seed
+
+
+def start_daily_game():
+    cubes = load_cubes()
+    if not cubes:
+        return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
+
+    date_str, seed = get_daily_seed()
+    idx = seed % len(cubes)
+    cube = cubes[idx]
+
+    # reveal 4 deterministic positions based on seed
+    all_pos = [(r, c) for r in range(4) for c in range(4)]
+    rng = random.Random(seed)
+    revealed = rng.sample(all_pos, 4)
+
+    session['cube'] = cube
+    session['revealed'] = revealed
+    session['game_mode'] = 'daily'
+    session['daily_date'] = date_str
+    session['difficulty'] = 'daily'
+    session['attempts'] = []
+    session['feedbacks'] = []
+    session['solved'] = False
+    session['guessed_letters'] = []
+    session['start_time'] = time.time()
+    session['end_time'] = None
+    return None
 
 
 def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, current_feedback, submission_greens=None):
@@ -166,8 +202,17 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
 
 @app.route('/')
 def index():
-    if 'cube' not in session:
-        return redirect(url_for('new_game'))
+    date_str, _seed = get_daily_seed()
+    if session.get('game_mode') == 'daily' and session.get('daily_date') != date_str:
+        start_daily_game()
+    elif 'cube' not in session:
+        start_daily_game()
+    daily_date_display = None
+    if session.get('daily_date'):
+        try:
+            daily_date_display = datetime.strptime(session['daily_date'], '%Y-%m-%d').strftime('%B %-d, %Y')
+        except ValueError:
+            daily_date_display = session.get('daily_date')
     cube = session['cube']
     revealed = set(tuple(p) for p in session.get('revealed', []))
     attempts = session.get('attempts', [])
@@ -182,7 +227,10 @@ def index():
                            attempts=attempts, feedbacks=feedbacks,
                            max_attempts=MAX_ATTEMPTS, solved=solved,
                            shake=shake, guessed_letters=guessed_letters,
-                           start_time=start_time, end_time=end_time)
+                           start_time=start_time, end_time=end_time,
+                           game_mode=session.get('game_mode', 'daily'),
+                           daily_date=session.get('daily_date'),
+                           daily_date_display=daily_date_display)
 
 
 @app.route('/new', methods=['GET', 'POST'])
@@ -208,6 +256,8 @@ def new_game():
     revealed = random.sample(all_pos, reveal_count) if reveal_count > 0 else []
     session['cube'] = cube
     session['revealed'] = revealed
+    session['game_mode'] = 'custom'
+    session['daily_date'] = None
     session['difficulty'] = level
     session['attempts'] = []
     session['feedbacks'] = []
@@ -293,6 +343,12 @@ def reveal_answer():
     session['solved'] = True
     if not session.get('end_time'):
         session['end_time'] = time.time()
+    return redirect(url_for('index'))
+
+
+@app.route('/daily')
+def daily_game():
+    start_daily_game()
     return redirect(url_for('index'))
 
 
