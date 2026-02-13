@@ -52,15 +52,34 @@ def compute_feedback(guess, solution):
 def compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks):
     """Compute feedback for all 4 rows, including previously found correct positions"""
     all_feedback = []
-    
+
+    # Precompute greens for the entire current submission so row order doesn't affect feedback
+    submission_greens = set()
+    for r in range(4):
+        guess_row = guesses[r]
+        solution_row = cube[r]
+        for c, ch in enumerate(guess_row):
+            if ch != ' ' and ch == solution_row[c]:
+                submission_greens.add((r, c))
+
     for row_idx in range(4):
-        fb = compute_feedback_enhanced(guesses[row_idx], cube[row_idx], cube, row_idx, revealed, attempts, feedbacks, all_feedback)
+        fb = compute_feedback_enhanced(
+            guesses[row_idx],
+            cube[row_idx],
+            cube,
+            row_idx,
+            revealed,
+            attempts,
+            feedbacks,
+            all_feedback,
+            submission_greens,
+        )
         all_feedback.append(fb)
-    
+
     return all_feedback
 
 
-def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, current_feedback):
+def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, current_feedback, submission_greens=None):
     """
     Three-pass feedback logic:
     Pass 1 (Green): Mark all letters that are correct at this position
@@ -72,19 +91,22 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
     revealed_set = set(revealed)
     revealed_in_row = {c for (r, c) in revealed if r == row_idx}
     
-    # Collect all green positions from previous attempts
+    # Collect all green positions from previous attempts and (optionally) full current submission
     all_greens = set()
+    if submission_greens is not None:
+        all_greens.update(submission_greens)
     for attempt_idx, fb_rows in enumerate(feedbacks):
         for row_idx_fb, fb_chars in enumerate(fb_rows):
             for char_idx, fb_char in enumerate(fb_chars):
                 if fb_char == 'G':
                     all_greens.add((row_idx_fb, char_idx))
     
-    # Include greens from current submission rows already processed
-    for row_idx_fb, fb_chars in enumerate(current_feedback):
-        for char_idx, fb_char in enumerate(fb_chars):
-            if fb_char == 'G':
-                all_greens.add((row_idx_fb, char_idx))
+    # Include greens from current submission rows already processed (legacy fallback)
+    if submission_greens is None:
+        for row_idx_fb, fb_chars in enumerate(current_feedback):
+            for char_idx, fb_char in enumerate(fb_chars):
+                if fb_char == 'G':
+                    all_greens.add((row_idx_fb, char_idx))
     
     # PASS 1: Mark correct positions (green)
     for i, ch in enumerate(guess):

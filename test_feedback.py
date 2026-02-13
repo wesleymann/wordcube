@@ -1,7 +1,7 @@
 """
 Test feedback logic for word cube game
 """
-from app import compute_feedback_enhanced
+from app import compute_feedback_enhanced, compute_feedback_all_rows
 
 def test_multiple_letter_instances():
     """Test: Letter A appears 3 times on board, tracking correctly"""
@@ -230,6 +230,35 @@ def test_purple_elsewhere():
     assert fb == 'P___', f"Expected 'P___', got '{fb}'"
 
 
+def test_submission_order_greens():
+    """Test: Same submission should not yield different feedback due to row order"""
+    cube = [
+        'mill',
+        'idea',
+        'most',
+        'else'
+    ]
+
+    guesses = [
+        'tied',
+        'idea',
+        'most',
+        'else'
+    ]
+
+    revealed = set()
+    attempts = []
+    feedbacks = []
+
+    result = compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks)
+
+    print("Test 7 - Same submission row order consistency:")
+    print(f"  Row 0: {result[0]}")
+
+    expected_row0 = '_G__'
+    assert result[0] == expected_row0, f"Row 0: Expected '{expected_row0}', got '{result[0]}'"
+
+
 if __name__ == '__main__':
     print("Running feedback tests...\n")
     
@@ -274,5 +303,11 @@ if __name__ == '__main__':
         print("✓ Test 6 passed\n")
     except AssertionError as e:
         print(f"✗ Test 6 failed: {e}\n")
+
+    try:
+        test_submission_order_greens()
+        print("✓ Test 7 passed\n")
+    except AssertionError as e:
+        print(f"✗ Test 7 failed: {e}\n")
     
     print("Tests complete!")
