@@ -15,6 +15,10 @@ CANDIDATE_CUBES = os.path.join('word_lists', 'word_cubes.txt')
 CUBES_FILE = CANDIDATE_CUBES if os.path.exists(CANDIDATE_CUBES) else 'word_cubes.txt'
 MAX_ATTEMPTS = 6
 
+CUBES_CACHE = None
+DAILY_CUBES_CACHE = None
+RANDOM_CUBES_CACHE = None
+
 
 def load_cubes():
     cubes = []
@@ -28,6 +32,23 @@ def load_cubes():
         if len(rows) == 4 and all(len(r) == 4 for r in rows):
             cubes.append(rows)
     return cubes
+
+
+def get_cubes():
+    global CUBES_CACHE
+    if CUBES_CACHE is None:
+        CUBES_CACHE = load_cubes()
+    return CUBES_CACHE
+
+
+def filter_cubes(cubes, blocklist):
+    def is_appropriate(cube):
+        for row in cube:
+            for word in blocklist:
+                if word in row:
+                    return False
+        return True
+    return [c for c in cubes if is_appropriate(c)]
 
 
 def compute_feedback(guess, solution):
@@ -91,20 +112,16 @@ def get_daily_seed():
 
 
 def start_daily_game():
-    cubes = load_cubes()
+    global DAILY_CUBES_CACHE
+    cubes = get_cubes()
     if not cubes:
         return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
 
     # Stricter blocklist for daily cube
     daily_blocklist = ['anal', 'anus', 'cock', 'damn', 'hell', 'slut', 'dick', 'fuck', 'shit', 'cunt', 'whore']
-    def is_appropriate(cube):
-        for row in cube:
-            for word in daily_blocklist:
-                if word in row:
-                    return False
-        return True
-    
-    cubes = [c for c in cubes if is_appropriate(c)]
+    if DAILY_CUBES_CACHE is None:
+        DAILY_CUBES_CACHE = filter_cubes(cubes, daily_blocklist)
+    cubes = DAILY_CUBES_CACHE
     if not cubes:
         return "No appropriate cubes found.", 500
 
@@ -220,9 +237,13 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
 def index():
     date_str, _seed = get_daily_seed()
     if session.get('game_mode') == 'daily' and session.get('daily_date') != date_str:
-        start_daily_game()
+        result = start_daily_game()
+        if result is not None:
+            return result
     elif 'cube' not in session:
-        start_daily_game()
+        result = start_daily_game()
+        if result is not None:
+            return result
     daily_date_display = None
     if session.get('daily_date'):
         try:
@@ -263,20 +284,16 @@ def new_game():
     }
     reveal_count = reveal_counts.get(level, 4)
 
-    cubes = load_cubes()
+    global RANDOM_CUBES_CACHE
+    cubes = get_cubes()
     if not cubes:
         return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
     
     # Less strict blocklist for random games
     random_blocklist = ['dick', 'fuck', 'shit', 'cunt', 'whore']
-    def is_appropriate(cube):
-        for row in cube:
-            for word in random_blocklist:
-                if word in row:
-                    return False
-        return True
-    
-    cubes = [c for c in cubes if is_appropriate(c)]
+    if RANDOM_CUBES_CACHE is None:
+        RANDOM_CUBES_CACHE = filter_cubes(cubes, random_blocklist)
+    cubes = RANDOM_CUBES_CACHE
     if not cubes:
         return "No appropriate cubes found.", 500
     
@@ -378,7 +395,9 @@ def reveal_answer():
 
 @app.route('/daily')
 def daily_game():
-    start_daily_game()
+    result = start_daily_game()
+    if result is not None:
+        return result
     return redirect(url_for('index'))
 
 
