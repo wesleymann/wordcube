@@ -136,3 +136,8 @@ input { padding: 8px 10px; font-size: 16px; width: 160px; border: 1px solid #e5e
 .modal button { width: 100%; padding: 12px; background: var(--text); color: var(--white); border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; }
 .modal button:hover { opacity: 0.9; }
 
+/* Help Button */
+.help-button { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--muted); background: var(--white); color: var(--muted); font-size: 24px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 50; }
+.help-button:hover { color: var(--text); border-color: var(--text); background: #f9fafb; }
+.help-button:active { transform: scale(0.95); }
+

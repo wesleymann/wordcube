@@ -16,6 +16,7 @@
 </div>
 
 <div class="game-meta">
+  <button class="help-button" onclick="toggleWelcome()" aria-label="Show help">?</button>
   <div class="game-links">
     <a href="{{ url_for('new_game') }}">Play Random Cube</a>
     <span class="sep">|</span>
@@ -481,6 +482,19 @@ function closeWelcome() {
   document.getElementById('welcome-modal').style.display = 'none';
   localStorage.setItem('wordcube-seen-welcome', 'true');
 }
+
+// Toggle welcome modal
+function toggleWelcome() {
+  const modal = document.getElementById('welcome-modal');
+  modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+}
+
+// Close modal when clicking overlay (outside modal)
+document.getElementById('welcome-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'welcome-modal') {
+    closeWelcome();
+  }
+});
 
 // Check if user has seen the welcome modal
 if (!localStorage.getItem('wordcube-seen-welcome')) {
