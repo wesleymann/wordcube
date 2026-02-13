@@ -81,26 +81,32 @@
   <canvas id="celebration-canvas" aria-hidden="true"></canvas>
 {% endif %}
 
-{% if guessed_letters %}
-  <div class="guessed-letters">
-    <h4>Guessed Letters (Not on Board)</h4>
-    <div class="guessed-list">
-      {% for letter in guessed_letters|sort %}
-        <div class="guessed-letter">{{ letter.upper() }}</div>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
-
 <form id="guess-form" method="post" action="{{ url_for('guess') }}">
   <!-- hidden row fields populated by JS from board inputs -->
   {% for i in range(4) %}
     <input type="hidden" name="row{{ i }}" id="row{{ i }}-hidden">
   {% endfor %}
-  <div class="guess-submit">
-    <button type="submit" class="guess-button">Submit</button>
-  </div>
 </form>
+
+<div class="keyboard" aria-label="On-screen keyboard">
+  <div class="key-row">
+    {% for k in ['Q','W','E','R','T','Y','U','I','O','P'] %}
+      <button type="button" class="key" data-key="{{ k }}">{{ k }}</button>
+    {% endfor %}
+  </div>
+  <div class="key-row">
+    {% for k in ['A','S','D','F','G','H','J','K','L'] %}
+      <button type="button" class="key" data-key="{{ k }}">{{ k }}</button>
+    {% endfor %}
+  </div>
+  <div class="key-row">
+    <button type="button" class="key key-wide" data-key="ENTER">Enter</button>
+    {% for k in ['Z','X','C','V','B','N','M'] %}
+      <button type="button" class="key" data-key="{{ k }}">{{ k }}</button>
+    {% endfor %}
+    <button type="button" class="key key-wide" data-key="DEL">Del</button>
+  </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -109,15 +115,79 @@ document.addEventListener('DOMContentLoaded', function(){
   const board = document.getElementById('board');
   const celebrationCanvas = document.getElementById('celebration-canvas');
   const timer = document.getElementById('timer');
+  const keyboard = document.querySelector('.keyboard');
+  let lastFocusedInput = null;
 
   // focus first editable tile
   const firstEditable = boardInputs.find(i => !i.disabled);
   if (firstEditable) firstEditable.focus();
+  lastFocusedInput = firstEditable;
 
   // remove shake class after animation
   if (board && board.classList.contains('shake')) {
     board.addEventListener('animationend', () => board.classList.remove('shake'));
   }
+
+  const getNextEditable = (startIdx) => {
+    let j = startIdx + 1;
+    while (j < boardInputs.length && boardInputs[j].disabled) j++;
+    return j < boardInputs.length ? j : null;
+  };
+
+  const getPrevEditable = (startIdx) => {
+    let j = startIdx - 1;
+    while (j >= 0 && boardInputs[j].disabled) j--;
+    return j >= 0 ? j : null;
+  };
+
+  const getCurrentInput = () => {
+    const active = document.activeElement;
+    if (active && active.classList && active.classList.contains('board-input') && !active.disabled) {
+      lastFocusedInput = active;
+      return active;
+    }
+    return lastFocusedInput && !lastFocusedInput.disabled ? lastFocusedInput : (boardInputs.find(i => !i.disabled) || null);
+  };
+
+  const submitGuess = () => {
+    for (let r = 0; r < 4; r++) {
+      let txt = '';
+      for (let c = 0; c < 4; c++) {
+        const idx = r*4 + c;
+        txt += (boardInputs[idx].value || ' ');
+      }
+      document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
+    }
+    form.submit();
+  };
+
+  const updateKeyboardFromBoard = () => {
+    if (!keyboard) return;
+    const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
+    const letterState = {};
+    boardInputs.forEach((inp) => {
+      const letter = (inp.value || '').toUpperCase();
+      const fb = inp.dataset.fb || '_';
+      if (!letter) return;
+      const current = letterState[letter] || { fb: null, p: -1 };
+      const p = priority[fb] !== undefined ? priority[fb] : -1;
+      if (p > current.p) {
+        letterState[letter] = { fb, p };
+      }
+    });
+
+    keyboard.querySelectorAll('.key').forEach((key) => {
+      key.classList.remove('correct', 'present', 'elsewhere', 'absent');
+      const k = key.dataset.key;
+      if (!k || k.length !== 1) return;
+      const state = letterState[k];
+      if (!state) return;
+      if (state.fb === 'G') key.classList.add('correct');
+      else if (state.fb === 'Y') key.classList.add('present');
+      else if (state.fb === 'P') key.classList.add('elsewhere');
+      else if (state.fb === '_') key.classList.add('absent');
+    });
+  };
 
   boardInputs.forEach((inp, idx) => {
     if (inp.disabled) return;
@@ -131,6 +201,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // Position cursor after existing letter when focused
     inp.addEventListener('focus', () => {
+      lastFocusedInput = inp;
       if (inp.value) {
         // Use setTimeout to ensure this happens after browser's default focus behavior
         setTimeout(() => {
@@ -162,9 +233,8 @@ document.addEventListener('DOMContentLoaded', function(){
         inp.classList.remove('elsewhere');
       }
       // move to next editable tile
-      let j = idx + 1;
-      while (j < boardInputs.length && boardInputs[j].disabled) j++;
-      if (inp.value && j < boardInputs.length) boardInputs[j].focus();
+      const next = getNextEditable(idx);
+      if (inp.value && next !== null) boardInputs[next].focus();
     });
 
     inp.addEventListener('keydown', (e) => {
@@ -175,20 +245,17 @@ document.addEventListener('DOMContentLoaded', function(){
           return;
         } else {
           // No text - go to previous tile
-          let j = idx - 1;
-          while (j >= 0 && boardInputs[j].disabled) j--;
-          if (j >= 0) boardInputs[j].focus();
+          const prev = getPrevEditable(idx);
+          if (prev !== null) boardInputs[prev].focus();
         }
       }
       if (e.key === 'ArrowLeft') {
-        let j = idx - 1;
-        while (j >= 0 && boardInputs[j].disabled) j--;
-        if (j >= 0) boardInputs[j].focus();
+        const prev = getPrevEditable(idx);
+        if (prev !== null) boardInputs[prev].focus();
       }
       if (e.key === 'ArrowRight') {
-        let j = idx + 1;
-        while (j < boardInputs.length && boardInputs[j].disabled) j++;
-        if (j < boardInputs.length) boardInputs[j].focus();
+        const next = getNextEditable(idx);
+        if (next !== null) boardInputs[next].focus();
       }
       // Up arrow: move to same column in row above, skipping disabled tiles
       if (e.key === 'ArrowUp') {
@@ -225,19 +292,40 @@ document.addEventListener('DOMContentLoaded', function(){
       // Submit on Enter
       if (e.key === 'Enter') {
         e.preventDefault();
-        // Populate hidden inputs and submit
-        for (let r = 0; r < 4; r++) {
-          let txt = '';
-          for (let c = 0; c < 4; c++) {
-            const idx = r*4 + c;
-            txt += (boardInputs[idx].value || ' ');
-          }
-          document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
-        }
-        form.submit();
+        submitGuess();
       }
     });
   });
+
+  if (keyboard) {
+    keyboard.addEventListener('click', (e) => {
+      const btn = e.target.closest('.key');
+      if (!btn) return;
+      const key = btn.dataset.key;
+      if (!key) return;
+      const current = getCurrentInput();
+      if (!current) return;
+      const idx = boardInputs.indexOf(current);
+
+      if (key === 'ENTER') {
+        submitGuess();
+        return;
+      }
+      if (key === 'DEL') {
+        if (current.value) {
+          current.value = '';
+          current.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          const prev = getPrevEditable(idx);
+          if (prev !== null) boardInputs[prev].focus();
+        }
+        return;
+      }
+
+      current.value = key;
+      current.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
 
   form.addEventListener('submit', (e) => {
     for (let r = 0; r < 4; r++) {
@@ -251,6 +339,8 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     // allow form to submit normally
   });
+
+  updateKeyboardFromBoard();
 
   if (timer) {
     const timerValue = document.getElementById('timer-value');
