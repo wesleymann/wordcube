@@ -3,7 +3,7 @@ import random
 import os
 import time
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
@@ -82,7 +82,10 @@ def compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks):
 
 
 def get_daily_seed():
-    date_str = datetime.utcnow().strftime('%Y-%m-%d')
+    # Get current time in EST (UTC-5, or UTC-4 during DST)
+    # Using US/Eastern timezone which automatically handles DST
+    est = timezone(timedelta(hours=-5))
+    date_str = datetime.now(est).strftime('%Y-%m-%d')
     seed = int(hashlib.sha256(date_str.encode()).hexdigest(), 16)
     return date_str, seed
 
