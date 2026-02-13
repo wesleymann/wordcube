@@ -95,6 +95,19 @@ def start_daily_game():
     if not cubes:
         return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
 
+    # Stricter blocklist for daily cube
+    daily_blocklist = ['anal', 'anus', 'cock', 'damn', 'hell', 'slut', 'dick', 'fuck', 'shit', 'cunt', 'whore']
+    def is_appropriate(cube):
+        for row in cube:
+            for word in daily_blocklist:
+                if word in row:
+                    return False
+        return True
+    
+    cubes = [c for c in cubes if is_appropriate(c)]
+    if not cubes:
+        return "No appropriate cubes found.", 500
+
     date_str, seed = get_daily_seed()
     idx = seed % len(cubes)
     cube = cubes[idx]
@@ -253,6 +266,20 @@ def new_game():
     cubes = load_cubes()
     if not cubes:
         return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
+    
+    # Less strict blocklist for random games
+    random_blocklist = ['dick', 'fuck', 'shit', 'cunt', 'whore']
+    def is_appropriate(cube):
+        for row in cube:
+            for word in random_blocklist:
+                if word in row:
+                    return False
+        return True
+    
+    cubes = [c for c in cubes if is_appropriate(c)]
+    if not cubes:
+        return "No appropriate cubes found.", 500
+    
     cube = random.choice(cubes)
     # reveal N random positions based on difficulty
     all_pos = [(r, c) for r in range(4) for c in range(4)]
