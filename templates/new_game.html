@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Choose Difficulty</h3>
+<p>Select how many letters are revealed at the start:</p>
+
+<form method="post" action="{{ url_for('new_game') }}" class="difficulty-grid">
+  <button type="submit" name="level" value="easy" class="difficulty-card">
+    <span class="difficulty-title">Easy</span>
+    <span class="difficulty-subtitle">8 letters revealed</span>
+  </button>
+  <button type="submit" name="level" value="medium" class="difficulty-card">
+    <span class="difficulty-title">Medium</span>
+    <span class="difficulty-subtitle">6 letters revealed</span>
+  </button>
+  <button type="submit" name="level" value="hard" class="difficulty-card">
+    <span class="difficulty-title">Hard</span>
+    <span class="difficulty-subtitle">4 letters revealed</span>
+  </button>
+  <button type="submit" name="level" value="insane" class="difficulty-card">
+    <span class="difficulty-title">Insane</span>
+    <span class="difficulty-subtitle">0 letters revealed</span>
+  </button>
+</form>
+
+<p><a href="{{ url_for('index') }}">Cancel</a></p>
+
+{% endblock %}

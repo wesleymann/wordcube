@@ -185,17 +185,30 @@ def index():
                            start_time=start_time, end_time=end_time)
 
 
-@app.route('/new')
+@app.route('/new', methods=['GET', 'POST'])
 def new_game():
+    if request.method == 'GET':
+        return render_template('new_game.html')
+
+    level = request.form.get('level', 'hard').lower()
+    reveal_counts = {
+        'easy': 8,
+        'medium': 6,
+        'hard': 4,
+        'insane': 0,
+    }
+    reveal_count = reveal_counts.get(level, 4)
+
     cubes = load_cubes()
     if not cubes:
         return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
     cube = random.choice(cubes)
-    # reveal 4 random positions
+    # reveal N random positions based on difficulty
     all_pos = [(r, c) for r in range(4) for c in range(4)]
-    revealed = random.sample(all_pos, 4)
+    revealed = random.sample(all_pos, reveal_count) if reveal_count > 0 else []
     session['cube'] = cube
     session['revealed'] = revealed
+    session['difficulty'] = level
     session['attempts'] = []
     session['feedbacks'] = []
     session['solved'] = False
