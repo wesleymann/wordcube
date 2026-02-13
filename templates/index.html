@@ -92,14 +92,13 @@
   </div>
 {% endif %}
 
-<h3>Make a Guess</h3>
 <form id="guess-form" method="post" action="{{ url_for('guess') }}">
   <!-- hidden row fields populated by JS from board inputs -->
   {% for i in range(4) %}
     <input type="hidden" name="row{{ i }}" id="row{{ i }}-hidden">
   {% endfor %}
-  <div style="margin-top:12px">
-    <button type="submit">Submit Guess</button>
+  <div class="guess-submit">
+    <button type="submit" class="guess-button">Submit</button>
   </div>
 </form>
 
