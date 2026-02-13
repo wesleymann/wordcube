@@ -110,6 +110,13 @@
 </div>
 
 <script>
+// Embed game history for keyboard persistence
+const gameHistory = {
+  attempts: {{ attempts | tojson }},
+  feedbacks: {{ feedbacks | tojson }},
+  revealed: new Set({{ (revealed | list) | tojson }}.map(pair => `${pair[0]},${pair[1]}`))
+};
+
 document.addEventListener('DOMContentLoaded', function(){
   const form = document.getElementById('guess-form');
   const boardInputs = Array.from(document.querySelectorAll('.board-input'));
@@ -166,11 +173,47 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!keyboard) return;
     const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
     const letterState = {};
+    
+    // First, process all historical attempts (from previous submissions)
+    if (gameHistory && gameHistory.attempts && gameHistory.feedbacks && gameHistory.attempts.length > 0) {
+      for (let attemptIdx = 0; attemptIdx < gameHistory.attempts.length; attemptIdx++) {
+        const attempt = gameHistory.attempts[attemptIdx];
+        const feedback = gameHistory.feedbacks[attemptIdx];
+        
+        // Each attempt is an array of 4 rows
+        for (let rowIdx = 0; rowIdx < attempt.length; rowIdx++) {
+          const guessRow = attempt[rowIdx];
+          const fbRow = feedback[rowIdx];
+          
+          for (let colIdx = 0; colIdx < guessRow.length; colIdx++) {
+            // Skip revealed positions - they shouldn't count toward keyboard feedback
+            const posKey = `${rowIdx},${colIdx}`;
+            if (gameHistory.revealed && gameHistory.revealed.has(posKey)) {
+              continue;
+            }
+            
+            const letter = guessRow[colIdx].toUpperCase();
+            const fb = fbRow[colIdx] || '_';
+            if (!letter || letter === ' ') continue;
+            
+            const current = letterState[letter] || { fb: null, p: -1 };
+            const p = priority[fb] !== undefined ? priority[fb] : -1;
+            if (p > current.p) {
+              letterState[letter] = { fb, p };
+            }
+          }
+        }
+      }
+    }
+    
+    // Then, process current board inputs (excluding revealed tiles)
+    // This handles the current guess being typed
     boardInputs.forEach((inp) => {
-      if (inp.disabled) return; // skip revealed tiles
+      if (inp.disabled) return; // skip revealed and locked tiles
       const letter = (inp.value || '').toUpperCase();
+      if (!letter) return; // skip empty tiles
+      
       const fb = inp.dataset.fb || '_';
-      if (!letter) return;
       const current = letterState[letter] || { fb: null, p: -1 };
       const p = priority[fb] !== undefined ? priority[fb] : -1;
       if (p > current.p) {
@@ -183,11 +226,12 @@ document.addEventListener('DOMContentLoaded', function(){
       const k = key.dataset.key;
       if (!k || k.length !== 1) return;
       const state = letterState[k];
-      if (!state) return;
-      if (state.fb === 'G') key.classList.add('correct');
-      else if (state.fb === 'Y') key.classList.add('present');
-      else if (state.fb === 'P') key.classList.add('elsewhere');
-      else if (state.fb === '_') key.classList.add('absent');
+      if (state) {
+        if (state.fb === 'G') key.classList.add('correct');
+        else if (state.fb === 'Y') key.classList.add('present');
+        else if (state.fb === 'P') key.classList.add('elsewhere');
+        else if (state.fb === '_') key.classList.add('absent');
+      }
     });
   };
 
