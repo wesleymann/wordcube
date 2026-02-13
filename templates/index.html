@@ -33,6 +33,15 @@
     Custom Game
   {% endif %}
 </h3>
+
+<!-- Debug color display (remove after testing) -->
+<div id="color-debug" style="display: none; margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 6px; font-size: 12px; font-family: monospace; line-height: 1.6;">
+  <strong>Debug Colors:</strong><br>
+  <span id="debug-green" style="display: block; margin: 4px 0;"></span>
+  <span id="debug-black" style="display: block; margin: 4px 0;"></span>
+  <span id="debug-yellow" style="display: block; margin: 4px 0;"></span>
+  <span id="debug-purple" style="display: block; margin: 4px 0;"></span>
+</div>
 {# Compute last attempt/feedback if present #}
 {% set last_attempt = attempts[-1] if attempts else None %}
 {% set last_feedback = feedbacks[-1] if feedbacks else None %}
@@ -125,6 +134,33 @@ document.addEventListener('DOMContentLoaded', function(){
   const timer = document.getElementById('timer');
   const keyboard = document.querySelector('.keyboard');
   let lastFocusedInput = null;
+
+  // Debug: Show computed colors
+  const debugColors = () => {
+    const root = document.documentElement;
+    const styles = getComputedStyle(root);
+    const correctColor = styles.getPropertyValue('--correct').trim();
+    const revealedColor = styles.getPropertyValue('--revealed').trim();
+    const presentColor = styles.getPropertyValue('--present').trim();
+    const elsewhereColor = styles.getPropertyValue('--elsewhere').trim();
+    
+    // Also get actual rendered colors from elements
+    const correctEl = document.querySelector('.key.correct') || {style: {}};
+    const revealedEl = boardInputs.find(i => i.classList.contains('revealed'));
+    
+    const debugDiv = document.getElementById('color-debug');
+    if (debugDiv) {
+      debugDiv.style.display = 'block';
+      document.getElementById('debug-green').innerHTML = `Green (--correct): ${correctColor}<br>Computed: ${correctEl.style.backgroundColor || getComputedStyle(correctEl).backgroundColor}`;
+      document.getElementById('debug-black').innerHTML = `Black (--revealed): ${revealedColor}<br>Computed: ${revealedEl ? getComputedStyle(revealedEl).backgroundColor : 'N/A'}`;
+      document.getElementById('debug-yellow').innerHTML = `Yellow (--present): ${presentColor}`;
+      document.getElementById('debug-purple').innerHTML = `Purple (--elsewhere): ${elsewhereColor}`;
+    }
+  };
+  
+  // Call debug on page load and after a short delay to let styles apply
+  debugColors();
+  setTimeout(debugColors, 500);
 
   // focus first editable tile
   const firstEditable = boardInputs.find(i => !i.disabled);
