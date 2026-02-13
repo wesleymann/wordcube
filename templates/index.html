@@ -311,15 +311,19 @@ document.addEventListener('DOMContentLoaded', function(){
       }, 0);
     });
 
-    inp.addEventListener('input', () => {
-      // Limit to 1 character and uppercase
+    inp.addEventListener('input', (e) => {
+      // Always take the last typed character (allows overwriting)
       let text = inp.textContent.toUpperCase().replace(/[^A-Z]/g, '');
-      if (text.length > 1) text = text[0];
+      if (text.length > 1) {
+        // User typed a new character while one existed - take the new one
+        text = text[text.length - 1];
+      }
       
-      // Only update if different to avoid cursor issues
-      if (inp.textContent !== text) {
-        inp.textContent = text;
-        // Restore cursor position after changing text
+      // Always update to ensure overwriting works
+      inp.textContent = text;
+      
+      // Restore cursor position after changing text
+      if (text) {
         const range = document.createRange();
         const sel = window.getSelection();
         if (inp.childNodes.length > 0) {
@@ -348,6 +352,13 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 
     inp.addEventListener('keydown', (e) => {
+      // If a letter key is pressed and there's already content, clear it first
+      if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+        if (inp.textContent.trim()) {
+          inp.textContent = '';
+        }
+      }
+      
       // Allow backspace to delete normally when text is selected
       if (e.key === 'Backspace') {
         if (inp.textContent) {
