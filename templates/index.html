@@ -235,6 +235,50 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   };
 
+  // Force colors via inline styles (bypasses CSS, works on iOS)
+  const forceColors = () => {
+    const boardColorMap = {
+      'correct': { bg: 'rgb(16, 185, 129)', fg: '#ffffff' },
+      'present': { bg: 'rgb(234, 179, 8)', fg: '#ffffff' },
+      'elsewhere': { bg: 'rgb(168, 85, 247)', fg: '#ffffff' },
+      'revealed': { bg: 'rgb(0, 0, 0)', fg: '#ffffff' },
+      'absent': { bg: '#ffffff', fg: '#6b7280' }
+    };
+
+    const keyboardColorMap = {
+      'correct': { bg: 'rgb(16, 185, 129)', fg: '#ffffff', border: 'none' },
+      'present': { bg: 'rgb(234, 179, 8)', fg: '#ffffff', border: 'none' },
+      'elsewhere': { bg: 'rgb(168, 85, 247)', fg: '#ffffff', border: 'none' },
+      'absent': { bg: '#d1d5db', fg: '#6b7280', border: '1px solid #e5e7eb' }
+    };
+
+    boardInputs.forEach((inp) => {
+      for (const [className, colors] of Object.entries(boardColorMap)) {
+        if (inp.classList.contains(className)) {
+          inp.style.backgroundColor = colors.bg;
+          inp.style.color = colors.fg;
+          break;
+        }
+      }
+    });
+
+    keyboard.querySelectorAll('.key').forEach((key) => {
+      for (const [className, colorProps] of Object.entries(keyboardColorMap)) {
+        if (key.classList.contains(className)) {
+          // Set color properties and preserve sizing/border
+          key.style.backgroundColor = colorProps.bg;
+          key.style.color = colorProps.fg;
+          key.style.border = colorProps.border;
+          key.style.boxShadow = '0 2px 6px rgba(15,23,42,0.08)';
+          break;
+        }
+      }
+    });
+  };
+
+  // Apply colors initially and whenever keyboard updates
+  forceColors();
+
   boardInputs.forEach((inp, idx) => {
     if (inp.disabled) return;
 
@@ -278,6 +322,7 @@ document.addEventListener('DOMContentLoaded', function(){
         inp.classList.remove('present');
         inp.classList.remove('elsewhere');
       }
+      forceColors(); // Keep tile colors correct while typing
       // move to next editable tile
       const next = getNextEditable(idx);
       if (inp.value && next !== null) boardInputs[next].focus();
@@ -387,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   updateKeyboardFromBoard();
+  forceColors();
 
   if (timer) {
     const timerValue = document.getElementById('timer-value');
