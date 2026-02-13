@@ -43,7 +43,7 @@
       {% for c in range(4) %}
         {% set ch = cube[r][c].upper() %}
         {% if (r, c) in revealed %}
-          <input class="board-input revealed" value="{{ ch }}" disabled>
+          <div class="board-input revealed" contenteditable="false">{{ ch }}</div>
         {% else %}
           {# If there was a last attempt, use its letter and feedback for this cell #}
           {% if last_attempt and last_feedback %}
@@ -52,17 +52,17 @@
             {% set letter = guessed_row[c].upper() if guessed_row|length > c else '' %}
             {% set fbchar = fb_row[c] if fb_row|length > c else '_' %}
             {% if fbchar == 'G' %}
-              <input class="board-input correct" value="{{ letter }}" disabled data-fb="G">
+              <div class="board-input correct" contenteditable="false" data-fb="G">{{ letter }}</div>
             {% elif fbchar == 'Y' %}
-              <input class="board-input present" maxlength="1" value="{{ letter }}" data-fb="Y">
+              <div class="board-input present" contenteditable="true" data-fb="Y">{{ letter }}</div>
             {% elif fbchar == 'P' %}
-              <input class="board-input elsewhere" maxlength="1" value="{{ letter }}" data-fb="P">
+              <div class="board-input elsewhere" contenteditable="true" data-fb="P">{{ letter }}</div>
             {% else %}
               {# show the previous guessed letter in black so it's visible on next guess #}
-              <input class="board-input absent" maxlength="1" value="{{ letter }}" data-fb="_">
+              <div class="board-input absent" contenteditable="true" data-fb="_">{{ letter }}</div>
             {% endif %}
           {% else %}
-            <input class="board-input" maxlength="1" value="" data-fb="_">
+            <div class="board-input" contenteditable="true" data-fb="_"></div>
           {% endif %}
         {% endif %}
       {% endfor %}
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function(){
   let lastFocusedInput = null;
 
   // focus first editable tile
-  const firstEditable = boardInputs.find(i => !i.disabled);
+  const firstEditable = boardInputs.find(i => i.contentEditable === 'true');
   if (firstEditable) firstEditable.focus();
   lastFocusedInput = firstEditable;
 
@@ -138,23 +138,23 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const getNextEditable = (startIdx) => {
     let j = startIdx + 1;
-    while (j < boardInputs.length && boardInputs[j].disabled) j++;
+    while (j < boardInputs.length && boardInputs[j].contentEditable === 'false') j++;
     return j < boardInputs.length ? j : null;
   };
 
   const getPrevEditable = (startIdx) => {
     let j = startIdx - 1;
-    while (j >= 0 && boardInputs[j].disabled) j--;
+    while (j >= 0 && boardInputs[j].contentEditable === 'false') j--;
     return j >= 0 ? j : null;
   };
 
   const getCurrentInput = () => {
     const active = document.activeElement;
-    if (active && active.classList && active.classList.contains('board-input') && !active.disabled) {
+    if (active && active.classList && active.classList.contains('board-input') && active.contentEditable === 'true') {
       lastFocusedInput = active;
       return active;
     }
-    return lastFocusedInput && !lastFocusedInput.disabled ? lastFocusedInput : (boardInputs.find(i => !i.disabled) || null);
+    return lastFocusedInput && lastFocusedInput.contentEditable === 'true' ? lastFocusedInput : (boardInputs.find(i => i.contentEditable === 'true') || null);
   };
 
   const submitGuess = () => {
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function(){
       let txt = '';
       for (let c = 0; c < 4; c++) {
         const idx = r*4 + c;
-        txt += (boardInputs[idx].value || ' ');
+        txt += (boardInputs[idx].textContent || ' ');
       }
       document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
     }
@@ -209,8 +209,8 @@ document.addEventListener('DOMContentLoaded', function(){
     // Then, process current board inputs (excluding revealed tiles)
     // This handles the current guess being typed
     boardInputs.forEach((inp) => {
-      if (inp.disabled) return; // skip revealed and locked tiles
-      const letter = (inp.value || '').toUpperCase();
+      if (inp.contentEditable === 'false') return; // skip revealed and locked tiles
+      const letter = (inp.textContent || '').toUpperCase();
       if (!letter) return; // skip empty tiles
       
       const fb = inp.dataset.fb || '_';
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function(){
   forceColors();
 
   boardInputs.forEach((inp, idx) => {
-    if (inp.disabled) return;
+    if (inp.contentEditable === 'false') return;
 
     // initialize class based on data-fb
     const fb = inp.dataset.fb || '_';
@@ -289,30 +289,49 @@ document.addEventListener('DOMContentLoaded', function(){
     else if (fb === 'P') { inp.classList.add('elsewhere'); }
     else { inp.classList.add('absent'); }
 
-    // Position cursor after existing letter when focused
+    // Position cursor at end when focused
     inp.addEventListener('focus', () => {
       lastFocusedInput = inp;
-      if (inp.value) {
-        // Use setTimeout to ensure this happens after browser's default focus behavior
-        setTimeout(() => {
-          inp.setSelectionRange(inp.value.length, inp.value.length);
-        }, 0);
-      }
-    });
-
-    // Handle mouse clicks specifically - browser places cursor where clicked
-    inp.addEventListener('click', () => {
-      if (inp.value) {
-        setTimeout(() => {
-          inp.setSelectionRange(inp.value.length, inp.value.length);
-        }, 0);
-      }
+      // Move cursor to end for contenteditable - use setTimeout to ensure it happens after focus
+      setTimeout(() => {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (inp.childNodes.length > 0) {
+          range.setStartAfter(inp.childNodes[inp.childNodes.length - 1]);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          // Empty div - place cursor inside
+          range.selectNodeContents(inp);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }, 0);
     });
 
     inp.addEventListener('input', () => {
-      inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, '');
+      // Limit to 1 character and uppercase
+      let text = inp.textContent.toUpperCase().replace(/[^A-Z]/g, '');
+      if (text.length > 1) text = text[0];
+      
+      // Only update if different to avoid cursor issues
+      if (inp.textContent !== text) {
+        inp.textContent = text;
+        // Restore cursor position after changing text
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (inp.childNodes.length > 0) {
+          range.setStartAfter(inp.childNodes[inp.childNodes.length - 1]);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+      
       // if cleared, make white/black absent state so user can see empty white box
-      if (!inp.value) {
+      if (!inp.textContent) {
         inp.classList.remove('present');
         inp.classList.remove('elsewhere');
         inp.classList.add('absent');
@@ -325,37 +344,41 @@ document.addEventListener('DOMContentLoaded', function(){
       forceColors(); // Keep tile colors correct while typing
       // move to next editable tile
       const next = getNextEditable(idx);
-      if (inp.value && next !== null) boardInputs[next].focus();
+      if (inp.textContent && next !== null) boardInputs[next].focus();
     });
 
     inp.addEventListener('keydown', (e) => {
       // Allow backspace to delete normally when text is selected
       if (e.key === 'Backspace') {
-        if (inp.value) {
+        if (inp.textContent) {
           // Text exists - allow default backspace behavior (delete)
           return;
         } else {
           // No text - go to previous tile
+          e.preventDefault();
           const prev = getPrevEditable(idx);
           if (prev !== null) boardInputs[prev].focus();
         }
       }
       if (e.key === 'ArrowLeft') {
+        e.preventDefault();
         const prev = getPrevEditable(idx);
         if (prev !== null) boardInputs[prev].focus();
       }
       if (e.key === 'ArrowRight') {
+        e.preventDefault();
         const next = getNextEditable(idx);
         if (next !== null) boardInputs[next].focus();
       }
       // Up arrow: move to same column in row above, skipping disabled tiles
       if (e.key === 'ArrowUp') {
+        e.preventDefault();
         const col = idx % 4;
         const row = Math.floor(idx / 4);
         if (row > 0) {
           let targetRow = row - 1;
           let targetIdx = targetRow * 4 + col;
-          while (targetRow >= 0 && boardInputs[targetIdx].disabled) {
+          while (targetRow >= 0 && boardInputs[targetIdx].contentEditable === 'false') {
             targetRow--;
             targetIdx = targetRow * 4 + col;
           }
@@ -366,12 +389,13 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       // Down arrow: move to same column in row below, skipping disabled tiles
       if (e.key === 'ArrowDown') {
+        e.preventDefault();
         const col = idx % 4;
         const row = Math.floor(idx / 4);
         if (row < 3) {
           let targetRow = row + 1;
           let targetIdx = targetRow * 4 + col;
-          while (targetRow <= 3 && boardInputs[targetIdx].disabled) {
+          while (targetRow <= 3 && boardInputs[targetIdx].contentEditable === 'false') {
             targetRow++;
             targetIdx = targetRow * 4 + col;
           }
@@ -403,8 +427,8 @@ document.addEventListener('DOMContentLoaded', function(){
         return;
       }
       if (key === 'DEL') {
-        if (current.value) {
-          current.value = '';
+        if (current.textContent) {
+          current.textContent = '';
           current.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
           const prev = getPrevEditable(idx);
@@ -413,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function(){
         return;
       }
 
-      current.value = key;
+      current.textContent = key;
       current.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
@@ -423,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function(){
       let txt = '';
       for (let c = 0; c < 4; c++) {
         const idx = r*4 + c;
-        txt += (boardInputs[idx].value || ' ');
+        txt += (boardInputs[idx].textContent || ' ');
       }
       // Keep spaces as-is, only lowercase letters (don't remove spaces)
       document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();

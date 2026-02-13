@@ -284,6 +284,10 @@ def guess():
         # Allow partial submissions with spaces; validate length and characters
         if len(v) != 4 or not all(c.isalpha() or c == ' ' for c in v):
             return redirect(url_for('index'))
+        # Replace spaces with empty strings so they render as truly empty tiles
+        v = v.replace(' ', '')
+        # Pad back to length 4 with empty strings for proper indexing
+        v = (v + '    ')[:4]
         guesses.append(v)
     # compute feedbacks with enhanced logic (G/Y/P/_)
     revealed = set(tuple(p) for p in session.get('revealed', []))
