@@ -18,8 +18,15 @@ body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvet
 .app-header { text-align: center; margin-bottom: 8px; }
 .brand { font-size: 26px; letter-spacing: 0.6px; margin: 0; font-weight: 700; }
 
+.game-meta { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.game-links { font-size: 14px; color: var(--muted); text-align: center; }
+.game-links a { color: var(--text); font-weight: 600; text-decoration: none; }
+.game-links a:hover { text-decoration: underline; }
+.game-links .sep { color: var(--muted); margin: 0 6px; }
+
 .cube-grid { display: grid; gap: 8px; margin: 16px 0 12px; }
 .cube-row { display: flex; justify-content: center; }
+.board-title { text-align: left; font-size: 16px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--muted); margin: 10px 0 6px; }
 .tile { width: 64px; height: 64px; line-height: 64px; text-align: center; margin: 4px; font-size: 28px; font-weight: 700; text-transform: uppercase; border-radius: 6px; background: var(--white); border: 2px solid var(--tile-border); box-sizing: border-box; }
 .tile.hidden { color: var(--muted); background: transparent; border-style: dashed; }
 .tile.revealed { background: var(--revealed); color: var(--white); }
