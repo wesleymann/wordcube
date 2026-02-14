@@ -110,12 +110,11 @@
 </div>
 
 <script>
-// Embed only recent game history for keyboard persistence (limit to last 3 attempts to prevent page bloat)
-const recentAttempts = {{ (attempts[-3:] if attempts else []) | tojson }};
-const recentFeedbacks = {{ (feedbacks[-3:] if feedbacks else []) | tojson }};
+// Use pre-computed keyboard state from server instead of storing all attempts
+const keyboard_state = {{ keyboard_state | tojson }};
 const gameHistory = {
-  attempts: recentAttempts,
-  feedbacks: recentFeedbacks,
+  attempts: [],  // Empty - we don't need it anymore
+  feedbacks: [],  // Empty - we don't need it anymore
   revealed: new Set({{ (revealed | list) | tojson }}.map(pair => `${pair[0]},${pair[1]}`))
 };
 
@@ -173,61 +172,14 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const updateKeyboardFromBoard = () => {
     if (!keyboard) return;
-    const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
-    const letterState = {};
     
-    // First, process all historical attempts (from previous submissions)
-    if (gameHistory && gameHistory.attempts && gameHistory.feedbacks && gameHistory.attempts.length > 0) {
-      for (let attemptIdx = 0; attemptIdx < gameHistory.attempts.length; attemptIdx++) {
-        const attempt = gameHistory.attempts[attemptIdx];
-        const feedback = gameHistory.feedbacks[attemptIdx];
-        
-        // Each attempt is an array of 4 rows
-        for (let rowIdx = 0; rowIdx < attempt.length; rowIdx++) {
-          const guessRow = attempt[rowIdx];
-          const fbRow = feedback[rowIdx];
-          
-          for (let colIdx = 0; colIdx < guessRow.length; colIdx++) {
-            // Skip revealed positions - they shouldn't count toward keyboard feedback
-            const posKey = `${rowIdx},${colIdx}`;
-            if (gameHistory.revealed && gameHistory.revealed.has(posKey)) {
-              continue;
-            }
-            
-            const letter = guessRow[colIdx].toUpperCase();
-            const fb = fbRow[colIdx] || '_';
-            if (!letter || letter === ' ') continue;
-            
-            const current = letterState[letter] || { fb: null, p: -1 };
-            const p = priority[fb] !== undefined ? priority[fb] : -1;
-            if (p > current.p) {
-              letterState[letter] = { fb, p };
-            }
-          }
-        }
-      }
-    }
-    
-    // Then, process current board inputs (excluding revealed tiles)
-    // This handles the current guess being typed
-    boardInputs.forEach((inp) => {
-      if (inp.contentEditable === 'false') return; // skip revealed and locked tiles
-      const letter = (inp.textContent || '').toUpperCase();
-      if (!letter) return; // skip empty tiles
-      
-      const fb = inp.dataset.fb || '_';
-      const current = letterState[letter] || { fb: null, p: -1 };
-      const p = priority[fb] !== undefined ? priority[fb] : -1;
-      if (p > current.p) {
-        letterState[letter] = { fb, p };
-      }
-    });
-
+    // Use pre-computed keyboard state from server
     keyboard.querySelectorAll('.key').forEach((key) => {
       key.classList.remove('correct', 'present', 'elsewhere', 'absent');
       const k = key.dataset.key;
       if (!k || k.length !== 1) return;
-      const state = letterState[k];
+      
+      const state = keyboard_state[k];
       if (state) {
         if (state.fb === 'G') key.classList.add('correct');
         else if (state.fb === 'Y') key.classList.add('present');
@@ -361,14 +313,15 @@ document.addEventListener('DOMContentLoaded', function(){
         }
       }
       
-      // Allow backspace to delete normally when text is selected
+      // Handle backspace - manually clear content for contenteditable divs
       if (e.key === 'Backspace') {
+        e.preventDefault();
         if (inp.textContent) {
-          // Text exists - allow default backspace behavior (delete)
-          return;
+          // Text exists - delete it
+          inp.textContent = '';
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
           // No text - go to previous tile
-          e.preventDefault();
           const prev = getPrevEditable(idx);
           if (prev !== null) boardInputs[prev].focus();
         }
