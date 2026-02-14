@@ -260,6 +260,28 @@ def index():
     end_time = session.get('end_time')
     # show shake animation once if the last submission was incorrect
     shake = session.pop('shake', False)
+    
+    # Compute final keyboard state server-side to avoid sending all attempts
+    keyboard_state = {}  # letter -> ('G', 'Y', 'P', or '_')
+    priority = {'G': 3, 'Y': 2, 'P': 1, '_': 0}
+    revealed_set = revealed
+    if attempts and feedbacks:
+        for attempt_idx, attempt in enumerate(attempts):
+            fb_rows = feedbacks[attempt_idx]
+            for row_idx, guess_row in enumerate(attempt):
+                fb_row = fb_rows[row_idx]
+                for col_idx, ch in enumerate(guess_row):
+                    if not ch or ch == ' ':
+                        continue
+                    if (row_idx, col_idx) in revealed_set:
+                        continue
+                    letter = ch.upper()
+                    fb = fb_row[col_idx]
+                    current_priority = keyboard_state.get(letter, {'fb': '_', 'p': -1})
+                    new_priority = priority.get(fb, 0)
+                    if new_priority > current_priority['p']:
+                        keyboard_state[letter] = {'fb': fb, 'p': new_priority}
+    
     return render_template('index.html', cube=cube, revealed=revealed,
                            attempts=attempts, feedbacks=feedbacks,
                            max_attempts=MAX_ATTEMPTS, solved=solved,
@@ -267,7 +289,8 @@ def index():
                            start_time=start_time, end_time=end_time,
                            game_mode=session.get('game_mode', 'daily'),
                            daily_date=session.get('daily_date'),
-                           daily_date_display=daily_date_display)
+                           daily_date_display=daily_date_display,
+                           keyboard_state=keyboard_state)
 
 
 @app.route('/new', methods=['GET', 'POST'])
