@@ -8,8 +8,8 @@
     <p>Fill in the 4x4 grid with words. Some letters are revealed to help you start.</p>
     <p><strong>Feedback colors:</strong></p>
     <p><span class="example-tile correct">G</span> <strong>Green:</strong> Correct letter in the right position</p>
-    <p><span class="example-tile present">Y</span> <strong>Yellow:</strong> Letter exists in the same row or column, but wrong position</p>
-    <p><span class="example-tile elsewhere">P</span> <strong>Purple:</strong> Letter exists elsewhere on the grid (not in same row/column)</p>
+    <p><span class="example-tile present">P</span> <strong>Purple:</strong> Letter exists in the same row or column, but wrong position</p>
+    <p><span class="example-tile elsewhere">Y</span> <strong>Yellow:</strong> Letter exists elsewhere on the grid (not in same row/column)</p>
     <p>Good luck!</p>
     <button onclick="closeWelcome()">Start Playing</button>
   </div>
@@ -192,19 +192,23 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Force colors via inline styles (bypasses CSS, works on iOS)
   const forceColors = () => {
+    // Read colors from CSS variables for easy future customization
+    const root = document.documentElement;
+    const getColor = (varName) => getComputedStyle(root).getPropertyValue(varName).trim();
+    
     const boardColorMap = {
-      'correct': { bg: 'rgb(16, 185, 129)', fg: '#ffffff' },
-      'present': { bg: 'rgb(234, 179, 8)', fg: '#ffffff' },
-      'elsewhere': { bg: 'rgb(168, 85, 247)', fg: '#ffffff' },
-      'revealed': { bg: 'rgb(0, 0, 0)', fg: '#ffffff' },
-      'absent': { bg: '#ffffff', fg: '#6b7280' }
+      'correct': { bg: getColor('--correct'), fg: getColor('--white') },
+      'present': { bg: getColor('--present'), fg: getColor('--white') },
+      'elsewhere': { bg: getColor('--elsewhere'), fg: getColor('--white') },
+      'revealed': { bg: getColor('--revealed'), fg: getColor('--white') },
+      'absent': { bg: getColor('--white'), fg: getColor('--muted') }
     };
 
     const keyboardColorMap = {
-      'correct': { bg: 'rgb(16, 185, 129)', fg: '#ffffff', border: 'none' },
-      'present': { bg: 'rgb(234, 179, 8)', fg: '#ffffff', border: 'none' },
-      'elsewhere': { bg: 'rgb(168, 85, 247)', fg: '#ffffff', border: 'none' },
-      'absent': { bg: '#d1d5db', fg: '#6b7280', border: '1px solid #e5e7eb' }
+      'correct': { bg: getColor('--correct'), fg: getColor('--white'), border: 'none' },
+      'present': { bg: getColor('--present'), fg: getColor('--white'), border: 'none' },
+      'elsewhere': { bg: getColor('--elsewhere'), fg: getColor('--white'), border: 'none' },
+      'absent': { bg: getColor('--keyboard-absent'), fg: getColor('--muted'), border: 'none' }
     };
 
     boardInputs.forEach((inp) => {
@@ -297,8 +301,12 @@ document.addEventListener('DOMContentLoaded', function(){
       } else {
         // user typed something — remove previous feedback coloring
         inp.classList.remove('absent');
+        inp.classList.remove('correct');
         inp.classList.remove('present');
         inp.classList.remove('elsewhere');
+        // Explicitly set white background while editing
+        inp.style.backgroundColor = '#ffffff';
+        inp.style.color = '#6b7280';
       }
       forceColors(); // Keep tile colors correct while typing
       // move to next editable tile
