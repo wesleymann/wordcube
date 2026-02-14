@@ -54,15 +54,15 @@
             {% if fbchar == 'G' %}
               <div class="board-input correct" contenteditable="false" data-fb="G">{{ letter }}</div>
             {% elif fbchar == 'Y' %}
-              <div class="board-input present" contenteditable="true" data-fb="Y">{{ letter }}</div>
+              <div class="board-input present" contenteditable="true" data-fb="Y" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
             {% elif fbchar == 'P' %}
-              <div class="board-input elsewhere" contenteditable="true" data-fb="P">{{ letter }}</div>
+              <div class="board-input elsewhere" contenteditable="true" data-fb="P" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
             {% else %}
               {# show the previous guessed letter in black so it's visible on next guess #}
-              <div class="board-input absent" contenteditable="true" data-fb="_">{{ letter }}</div>
+              <div class="board-input absent" contenteditable="true" data-fb="_" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
             {% endif %}
           {% else %}
-            <div class="board-input" contenteditable="true" data-fb="_"></div>
+            <div class="board-input" contenteditable="true" data-fb="_" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
           {% endif %}
         {% endif %}
       {% endfor %}
