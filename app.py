@@ -282,7 +282,7 @@ def index():
                     if new_priority > current_priority['p']:
                         keyboard_state[letter] = {'fb': fb, 'p': new_priority}
     
-    return render_template('index.html', cube=cube, revealed=revealed,
+    return render_template('index.html', cube=cube, revealed=list(revealed),
                            attempts=attempts, feedbacks=feedbacks,
                            max_attempts=MAX_ATTEMPTS, solved=solved,
                            shake=shake, guessed_letters=guessed_letters,

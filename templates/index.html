@@ -72,6 +72,7 @@
 
 {% if solved %}
   <p class="success">Solved! Well done.</p>
+  <button id="share-btn" onclick="shareResult()" style="width: 100%; padding: 10px; background: #111827; color: #ffffff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 12px;">Share Result</button>
 {% endif %}
 
 <div class="timer" id="timer" data-start="{{ start_time|default('', true) }}" data-end="{{ end_time|default('', true) }}">
@@ -579,6 +580,79 @@ document.getElementById('welcome-modal').addEventListener('click', (e) => {
 // Check if user has seen the welcome modal
 if (!localStorage.getItem('wordcube-seen-welcome')) {
   document.getElementById('welcome-modal').style.display = 'flex';
+}
+
+function shareResult() {
+  // Get attempts and feedbacks from page data
+  const gameHistory = {
+    attempts: {{ attempts | tojson }},
+    feedbacks: {{ feedbacks | tojson }},
+    revealed: {{ revealed | tojson }},
+    start_time: {{ start_time }},
+    end_time: {{ end_time }}
+  };
+
+  // Convert revealed array to Set for O(1) lookup
+  const revealedSet = new Set(gameHistory.revealed.map(([r, c]) => `${r},${c}`));
+
+  // Create emoji grid
+  let emojiGrid = '';
+  for (let a = 0; a < gameHistory.attempts.length; a++) {
+    const fb = gameHistory.feedbacks[a];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        // Check if this tile is a revealed (given) tile
+        if (revealedSet.has(`${r},${c}`)) {
+          emojiGrid += '⬛';
+        } else {
+          const fbChar = fb[r][c];
+          if (fbChar === 'G') {
+            emojiGrid += '🟩';
+          } else if (fbChar === 'Y') {
+            emojiGrid += '🟨';
+          } else if (fbChar === 'P') {
+            emojiGrid += '🟪';
+          } else {
+            emojiGrid += '⬜';
+          }
+        }
+      }
+      emojiGrid += '\n';
+    }
+    emojiGrid += '\n'; // Add extra newline between attempts
+  }
+
+  // Calculate time
+  let endTime = gameHistory.end_time;
+  if (!endTime || endTime === null) {
+    endTime = Date.now() / 1000; // Use current time if end_time not set
+  }
+  const timeSeconds = (endTime - gameHistory.start_time);
+  const mins = Math.floor(timeSeconds / 60);
+  const secs = Math.floor(timeSeconds % 60);
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  // Format attempts count
+  const attemptsCount = gameHistory.attempts.length;
+
+  // Create share text
+  const gameMode = '{{ game_mode }}';
+  let title = gameMode === 'daily' ? 'Daily Cube' : 'Custom Game';
+  const shareText = `Word Cube ${title}\n\n${emojiGrid}\nAttempts: ${attemptsCount}\nTime: ${timeStr}`;
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(shareText).then(() => {
+    // Show feedback
+    const btn = document.getElementById('share-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => {
+      btn.textContent = originalText;
+    }, 2000);
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+    alert('Failed to copy to clipboard');
+  });
 }
 </script>
 
