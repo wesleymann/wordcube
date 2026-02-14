@@ -110,10 +110,12 @@
 </div>
 
 <script>
-// Embed game history for keyboard persistence
+// Embed only recent game history for keyboard persistence (limit to last 3 attempts to prevent page bloat)
+const recentAttempts = {{ (attempts[-3:] if attempts else []) | tojson }};
+const recentFeedbacks = {{ (feedbacks[-3:] if feedbacks else []) | tojson }};
 const gameHistory = {
-  attempts: {{ attempts | tojson }},
-  feedbacks: {{ feedbacks | tojson }},
+  attempts: recentAttempts,
+  feedbacks: recentFeedbacks,
   revealed: new Set({{ (revealed | list) | tojson }}.map(pair => `${pair[0]},${pair[1]}`))
 };
 
