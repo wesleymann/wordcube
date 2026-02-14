@@ -414,6 +414,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
       current.textContent = key;
       current.dispatchEvent(new Event('input', { bubbles: true }));
+      // Move to next editable tile after input
+      const next = getNextEditable(idx);
+      if (next !== null) boardInputs[next].focus();
     });
   }
 
