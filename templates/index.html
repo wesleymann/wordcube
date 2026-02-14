@@ -646,7 +646,7 @@ function shareResult() {
   // Create share text
   const gameMode = '{{ game_mode }}';
   let title = gameMode === 'daily' ? 'Daily Cube' : 'Custom Game';
-  const shareText = `Word Cube ${title}\n\n${emojiGrid}\nAttempts: ${attemptsCount}\nTime: ${timeStr}`;
+  const shareText = `Word Cube ${title}\n\n${emojiGrid}\nAttempts: ${attemptsCount}\nTime: ${timeStr}\n\nPlay at: wordcube.onrender.com`;
 
   // Copy to clipboard
   navigator.clipboard.writeText(shareText).then(() => {
