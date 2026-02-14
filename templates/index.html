@@ -415,6 +415,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
       current.textContent = key;
       current.dispatchEvent(new Event('input', { bubbles: true }));
+      // Blur after brief delay to prevent native keyboard, but keep focus visible momentarily
+      setTimeout(() => current.blur(), 50);
     });
   }
 
