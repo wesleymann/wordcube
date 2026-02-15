@@ -340,69 +340,53 @@ def new_game():
 
 @app.route('/guess', methods=['POST'])
 def guess():
+    """
+    Optimized guess endpoint for offline-first architecture.
+    Client computes feedback instantly. Server just validates and persists.
+    """
     if 'cube' not in session:
         return redirect(url_for('new_game'))
+    
     cube = session['cube']
     if session.get('solved'):
-        return redirect(url_for('index'))
+        # Game already solved, just acknowledge
+        return '', 204
+    
+    # Validate and retrieve guesses
     guesses = []
     for i in range(4):
         v = request.form.get(f'row{i}', '').lower()
-        # Allow partial submissions with spaces; validate length and characters
+        # Validate: must be exactly 4 chars, all letters or spaces
         if len(v) != 4 or not all(c.isalpha() or c == ' ' for c in v):
-            return redirect(url_for('index'))
+            return '', 400  # Bad request
         guesses.append(v)
-    # compute feedbacks with enhanced logic (G/Y/P/_)
+    
+    # Server-side validation: compute feedback to verify and persist
     revealed = set(tuple(p) for p in session.get('revealed', []))
     attempts = session.get('attempts', [])
     feedbacks = session.get('feedbacks', [])
     
+    # Compute server-side feedback (for verification and persistence)
     fbs = compute_feedback_all_rows(guesses, cube, revealed, attempts, feedbacks)
     
+    # Store the attempt and feedback
     attempts.append(guesses)
     feedbacks.append(fbs)
     session['attempts'] = attempts
     session['feedbacks'] = feedbacks
     
-    # Track which positions have been correctly placed
-    correctly_placed_positions = set()
-    for attempt_idx, fb_rows in enumerate(feedbacks):
-        for row_idx_fb, fb_chars in enumerate(fb_rows):
-            for char_idx, fb_char in enumerate(fb_chars):
-                if fb_char == 'G':
-                    correctly_placed_positions.add((row_idx_fb, char_idx))
-    
-    # Extract letters that got '_' feedback
-    guessed_letters = []
-    for attempt_idx, fb_rows in enumerate(feedbacks):
-        for row_idx, fb_chars in enumerate(fb_rows):
-            for char_idx, fb_char in enumerate(fb_chars):
-                if fb_char == '_':
-                    letter = attempts[attempt_idx][row_idx][char_idx]
-                    if letter and letter != ' ' and letter not in guessed_letters:
-                        # Check if there are any remaining instances of this letter
-                        remaining = False
-                        for r in range(4):
-                            for c in range(4):
-                                if cube[r][c] == letter and (r, c) not in correctly_placed_positions and (r, c) not in revealed:
-                                    remaining = True
-                                    break
-                            if remaining:
-                                break
-                        # Add to guessed letters if no remaining instances
-                        if not remaining:
-                            guessed_letters.append(letter)
-    session['guessed_letters'] = guessed_letters
-    # solved if all green
+    # Check if solved
     if all(fb == 'G' * 4 for fb in fbs):
         session['solved'] = True
         if not session.get('end_time'):
             session['end_time'] = time.time()
     else:
-        # trigger a one-time shake animation client-side
+        # Trigger shake animation on next page load
         session['shake'] = True
-    # out of attempts resets allowed but stays on page
-    return redirect(url_for('index'))
+    
+    # Return 204 No Content - successful store, client handles UI
+    return '', 204
+
 
 
 @app.route('/reveal_answer')

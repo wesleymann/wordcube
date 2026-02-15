@@ -15,6 +15,17 @@
   </div>
 </div>
 
+<!-- Share Modal (manual copy fallback) -->
+<div id="share-modal" class="modal-overlay" style="display: none;">
+  <div class="modal">
+    <h2>Share Result</h2>
+    <p>Copy your result below:</p>
+    <textarea id="share-text" class="share-text" readonly rows="8"></textarea>
+    <button id="share-copy-btn" class="modal-button" tabindex="-1">Copy</button>
+    <button id="share-close-btn" class="modal-button" tabindex="-1">Close</button>
+  </div>
+</div>
+
 <div class="game-meta">
   <button class="help-button" id="help-btn" aria-label="Show help" tabindex="-1">?</button>
   <div class="game-links">
@@ -70,18 +81,16 @@
   {% endfor %}
 </div>
 
-{% if solved %}
+<div id="solved-banner" style="display: {{ 'block' if solved else 'none' }};">
   <p class="success">Solved! Well done.</p>
   <button id="share-btn" onclick="shareResult()" style="width: 100%; padding: 10px; background: #111827; color: #ffffff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 12px;">Share Result</button>
-{% endif %}
+</div>
 
 <div class="timer" id="timer" data-start="{{ start_time|default('', true) }}" data-end="{{ end_time|default('', true) }}">
   Time: <span id="timer-value">00:00</span>
 </div>
 
-{% if solved %}
-  <canvas id="celebration-canvas" aria-hidden="true"></canvas>
-{% endif %}
+<canvas id="celebration-canvas" aria-hidden="true" style="display: none; pointer-events: none;"></canvas>
 
 <form id="guess-form" method="post" action="{{ url_for('guess') }}">
   <!-- hidden row fields populated by JS from board inputs -->
@@ -113,11 +122,256 @@
 <script>
 // Use pre-computed keyboard state from server instead of storing all attempts
 const keyboard_state = {{ keyboard_state | tojson }};
+const cube = {{ cube | tojson }};  // Client-side cube for feedback computation
 const gameHistory = {
-  attempts: [],  // Empty - we don't need it anymore
-  feedbacks: [],  // Empty - we don't need it anymore
+  attempts: {{ attempts | tojson }},
+  feedbacks: {{ feedbacks | tojson }},
+  solved: {{ 'true' if solved else 'false' }},
   revealed: new Set({{ (revealed | list) | tojson }}.map(pair => `${pair[0]},${pair[1]}`))
 };
+window.gameHistory = gameHistory;
+
+/**
+ * Client-side feedback computation - mirrors compute_feedback_enhanced from app.py
+ * Returns a 4-character string with G/Y/P/_ for each letter in the guess
+ */
+function computeFeedback(guessRow, solutionRow, rowIdx, allAttempts, allFeedbacks, revealedSet, cubeData, allGreensFromSubmission) {
+  const result = ['_', '_', '_', '_'];
+  
+  // Collect all green positions from previous attempts and current submission
+  const allGreens = new Set();
+  
+  if (allGreensFromSubmission) {
+    allGreensFromSubmission.forEach(pos => allGreens.add(pos));
+  }
+  
+  // Add greens from previous feedbacks
+  if (allFeedbacks && allFeedbacks.length > 0) {
+    allFeedbacks.forEach((fbRows, attemptIdx) => {
+      fbRows.forEach((fbRow, rowIdxFb) => {
+        fbRow.split('').forEach((fbChar, colIdx) => {
+          if (fbChar === 'G') {
+            allGreens.add(`${rowIdxFb},${colIdx}`);
+          }
+        });
+      });
+    });
+  }
+  
+  // PASS 1: Mark correct positions (green)
+  for (let i = 0; i < 4; i++) {
+    const ch = guessRow[i] || ' ';
+    if (ch === ' ') {
+      result[i] = '_';
+    } else if (ch === solutionRow[i]) {
+      result[i] = 'G';
+      allGreens.add(`${rowIdx},${i}`);
+    }
+  }
+  
+  // PASS 2: Mark yellow (in same row or column, but not green)
+  for (let i = 0; i < 4; i++) {
+    const ch = guessRow[i] || ' ';
+    if (ch === ' ' || result[i] === 'G') continue;
+    
+    const revealedKey = `${rowIdx},${i}`;
+    if (revealedSet.has(revealedKey)) {
+      result[i] = '_';
+      continue;
+    }
+    
+    let inRow = false;
+    let inCol = false;
+    
+    // Check same row
+    for (let c = 0; c < 4; c++) {
+      if (c === i) continue;
+      const posKey = `${rowIdx},${c}`;
+      if (revealedSet.has(posKey)) continue;
+      if (cubeData[rowIdx][c] === ch && !allGreens.has(posKey)) {
+        inRow = true;
+        break;
+      }
+    }
+    
+    // Check same column
+    for (let r = 0; r < 4; r++) {
+      if (r === rowIdx) continue;
+      const posKey = `${r},${i}`;
+      if (revealedSet.has(posKey)) continue;
+      if (cubeData[r][i] === ch && !allGreens.has(posKey)) {
+        inCol = true;
+        break;
+      }
+    }
+    
+    if (inRow || inCol) {
+      result[i] = 'Y';
+    }
+  }
+  
+  // PASS 3: Mark purple (exists elsewhere on grid, not in same row/col, not green, not yellow)
+  for (let i = 0; i < 4; i++) {
+    const ch = guessRow[i] || ' ';
+    if (ch === ' ' || result[i] === 'G' || result[i] === 'Y') continue;
+    
+    const revealedKey = `${rowIdx},${i}`;
+    if (revealedSet.has(revealedKey)) {
+      result[i] = '_';
+      continue;
+    }
+    
+    let foundElsewhere = false;
+    outer: for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (cubeData[r][c] === ch) {
+          const posKey = `${r},${c}`;
+          // Skip if revealed, green, or in same row/column
+          if (revealedSet.has(posKey) || allGreens.has(posKey)) continue;
+          if (r === rowIdx || c === i) continue;
+          
+          foundElsewhere = true;
+          break outer;
+        }
+      }
+    }
+    
+    result[i] = foundElsewhere ? 'P' : '_';
+  }
+  
+  return result.join('');
+}
+
+/**
+ * Compute feedback for all 4 rows of a submission
+ */
+function computeFullFeedback(guessRows, cubeData, revealedSet, allAttempts, allFeedbacks) {
+  const allGreensInSubmission = new Set();
+  
+  // First pass: identify all greens in this submission (row order independent)
+  for (let r = 0; r < 4; r++) {
+    const guessRow = guessRows[r] || '';
+    const solutionRow = cubeData[r];
+    for (let c = 0; c < 4; c++) {
+      const ch = guessRow[c] || ' ';
+      if (ch !== ' ' && ch === solutionRow[c]) {
+        allGreensInSubmission.add(`${r},${c}`);
+      }
+    }
+  }
+  
+  // Second pass: compute feedback for each row with all greens known
+  const allFeedback = [];
+  for (let r = 0; r < 4; r++) {
+    const guessRow = guessRows[r] || '';
+    const solutionRow = cubeData[r];
+    const fb = computeFeedback(guessRow, solutionRow, r, allAttempts, allFeedbacks, revealedSet, cubeData, allGreensInSubmission);
+    allFeedback.push(fb);
+  }
+  
+  return allFeedback;
+}
+
+
+
+const OfflineQueue = {
+  storageKey: 'wordcube-pending-guesses',
+  
+  /**
+   * Add a guess to the queue
+   */
+  add(guess, feedback) {
+    const queue = this.getAll();
+    queue.push({
+      guess: guess,
+      feedback: feedback,
+      timestamp: Date.now(),
+      synced: false
+    });
+    localStorage.setItem(this.storageKey, JSON.stringify(queue));
+    console.log('📝 Queued guess to localStorage:', guess, 'Total pending:', queue.length);
+  },
+  
+  /**
+   * Get all pending guesses
+   */
+  getAll() {
+    try {
+      const data = localStorage.getItem(this.storageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('❌ Failed to read queue from localStorage:', e);
+      return [];
+    }
+  },
+  
+  /**
+   * Mark guesses as synced and remove them
+   */
+  clearSynced() {
+    localStorage.removeItem(this.storageKey);
+    console.log('✅ Cleared synced guesses from queue');
+  },
+  
+  /**
+   * Get count of pending guesses
+   */
+  count() {
+    return this.getAll().length;
+  }
+};
+
+/**
+ * Sync pending guesses with server
+ */
+async function syncPendingGuesses() {
+  const queue = OfflineQueue.getAll();
+  if (queue.length === 0) {
+    console.log('📊 No pending guesses to sync');
+    return true;
+  }
+  
+  console.log(`🔄 Syncing ${queue.length} pending guesses...`);
+  
+  try {
+    for (const item of queue) {
+      const formData = new FormData(document.getElementById('guess-form'));
+      // Override with the queued guess rows
+      for (let i = 0; i < 4; i++) {
+        formData.set(`row${i}`, item.guess[i]);
+      }
+      
+      const response = await fetch('{{ url_for("guess") }}', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ Failed to sync guess (HTTP ${response.status}):`, item.guess);
+        return false;
+      }
+    }
+    
+    OfflineQueue.clearSynced();
+    console.log('✅ All pending guesses synced successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Sync failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Schedule periodic sync attempts every 5 seconds
+ */
+function startSyncScheduler() {
+  setInterval(async () => {
+    if (OfflineQueue.count() > 0) {
+      await syncPendingGuesses();
+    }
+  }, 5000);
+  console.log('🕐 Sync scheduler started (5s interval)');
+}
 
 document.addEventListener('DOMContentLoaded', function(){
   const form = document.getElementById('guess-form');
@@ -127,6 +381,293 @@ document.addEventListener('DOMContentLoaded', function(){
   const timer = document.getElementById('timer');
   const keyboard = document.querySelector('.keyboard');
   let lastFocusedInput = null;
+  const attemptsContainer = document.getElementById('attempts-container');
+  const noAttemptsMsg = document.getElementById('no-attempts-msg');
+  const solvedBanner = document.getElementById('solved-banner');
+  let celebrationStarted = false;
+  const shareBtn = document.getElementById('share-btn');
+  const shareModal = document.getElementById('share-modal');
+  const shareTextArea = document.getElementById('share-text');
+  const shareCopyBtn = document.getElementById('share-copy-btn');
+  const shareCloseBtn = document.getElementById('share-close-btn');
+
+  const openShareModal = (text) => {
+    if (!shareModal || !shareTextArea) return;
+    shareTextArea.value = text;
+    shareModal.style.display = 'flex';
+    setTimeout(() => {
+      shareTextArea.focus();
+      shareTextArea.select();
+    }, 0);
+  };
+  window.openShareModal = openShareModal;
+
+  const closeShareModal = () => {
+    if (shareModal) shareModal.style.display = 'none';
+  };
+
+  if (shareCloseBtn) {
+    shareCloseBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      closeShareModal();
+    });
+  }
+
+  if (shareModal) {
+    shareModal.addEventListener('mousedown', (e) => {
+      if (e.target.id === 'share-modal') {
+        e.preventDefault();
+        closeShareModal();
+      }
+    });
+  }
+
+  if (shareCopyBtn) {
+    shareCopyBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (!shareTextArea) return;
+      shareTextArea.focus();
+      shareTextArea.select();
+      try {
+        const ok = document.execCommand('copy');
+        if (ok) {
+          shareCopyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            shareCopyBtn.textContent = 'Copy';
+          }, 1500);
+        }
+      } catch (err) {
+        // If copy fails, keep text selected for manual copy
+        console.error('Manual copy failed:', err);
+      }
+    });
+  }
+
+  if (shareBtn) {
+    shareBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const originalText = shareBtn.textContent;
+      shareBtn.textContent = 'Sharing...';
+      setTimeout(() => {
+        shareBtn.textContent = originalText;
+      }, 800);
+      shareResult();
+    });
+  }
+
+  const startCelebration = () => {
+    if (!celebrationCanvas || celebrationStarted) return;
+    celebrationStarted = true;
+    celebrationCanvas.style.display = 'block';
+
+    const ctx = celebrationCanvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const colors = ['#6aaa64', '#c9b458', '#b366cc', '#111827', '#3b82f6'];
+    let particles = [];
+    let startTime = performance.now();
+
+    const resize = () => {
+      celebrationCanvas.width = Math.floor(window.innerWidth * dpr);
+      celebrationCanvas.height = Math.floor(window.innerHeight * dpr);
+      celebrationCanvas.style.width = `${window.innerWidth}px`;
+      celebrationCanvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const spawnBurst = (x, y) => {
+      const count = 40;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 3;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          maxLife: 60 + Math.random() * 30,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: 2 + Math.random() * 2
+        });
+      }
+    };
+
+    const tick = () => {
+      const now = performance.now();
+      const elapsed = now - startTime;
+      ctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
+      if (elapsed < 2200 && Math.random() < 0.12) {
+        const x = 60 + Math.random() * (window.innerWidth - 120);
+        const y = 80 + Math.random() * (window.innerHeight * 0.4);
+        spawnBurst(x, y);
+      }
+
+      particles = particles.filter(p => p.life < p.maxLife);
+      for (const p of particles) {
+        p.life += 1;
+        p.vy += 0.04;
+        p.x += p.vx;
+        p.y += p.vy;
+        const alpha = 1 - p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      if (elapsed < 2600 || particles.length > 0) {
+        requestAnimationFrame(tick);
+      } else {
+        celebrationCanvas.style.display = 'none';
+      }
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+    spawnBurst(window.innerWidth / 2, window.innerHeight / 3);
+    requestAnimationFrame(tick);
+  };
+
+  const showSolvedUI = () => {
+    if (solvedBanner) solvedBanner.style.display = 'block';
+  };
+
+  const appendAttempt = (guessRows, feedback) => {
+    if (!attemptsContainer) return;
+    if (noAttemptsMsg) noAttemptsMsg.style.display = 'none';
+
+    const attemptGrid = document.createElement('div');
+    attemptGrid.className = 'attempt-grid';
+
+    for (let r = 0; r < 4; r++) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'attempt-row';
+
+      const guessRow = guessRows[r] || '';
+      const fbRow = feedback[r] || '____';
+
+      for (let c = 0; c < 4; c++) {
+        const letter = (guessRow[c] || '').toUpperCase();
+        const fb = fbRow.charAt(c) || '_';
+        const tile = document.createElement('div');
+        let cls = 'absent';
+
+        const revealedKey = `${r},${c}`;
+        if (gameHistory.revealed.has(revealedKey)) {
+          cls = 'revealed';
+        } else if (fb === 'G') {
+          cls = 'correct';
+        } else if (fb === 'Y') {
+          cls = 'present';
+        } else if (fb === 'P') {
+          cls = 'elsewhere';
+        }
+
+        tile.className = `attempt-tile ${cls}`;
+        tile.textContent = letter;
+        rowEl.appendChild(tile);
+      }
+
+      attemptGrid.appendChild(rowEl);
+    }
+
+    attemptsContainer.appendChild(attemptGrid);
+  };
+
+  // Apply feedback to the board display
+  const applyFeedbackToBoard = (guessRows, feedback) => {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const idx = r * 4 + c;
+        const tile = boardInputs[idx];
+        
+        // Skip revealed tiles - don't apply feedback to them
+        const revealedKey = `${r},${c}`;
+        if (gameHistory.revealed.has(revealedKey)) {
+          continue;
+        }
+        
+        const fbChar = feedback[r].charAt(c);  // feedback[r] is a string, so use charAt
+        
+        // Remove any existing feedback classes
+        tile.classList.remove('correct', 'present', 'elsewhere', 'absent');
+        
+        // Apply the appropriate class and colors
+        if (fbChar === 'G') {
+          tile.classList.add('correct');
+          tile.style.backgroundColor = 'rgb(16, 185, 129)';
+          tile.style.color = '#ffffff';
+        } else if (fbChar === 'Y') {
+          tile.classList.add('present');
+          tile.style.backgroundColor = 'rgb(168, 85, 247)';
+          tile.style.color = '#ffffff';
+        } else if (fbChar === 'P') {
+          tile.classList.add('elsewhere');
+          tile.style.backgroundColor = 'rgb(234, 179, 8)';
+          tile.style.color = '#ffffff';
+        } else {
+          tile.classList.add('absent');
+          tile.style.backgroundColor = '#ffffff';
+          tile.style.color = '#6b7280';
+        }
+        
+        // Keep greens locked; allow other tiles to be edited for next guess
+        tile.contentEditable = fbChar === 'G' ? 'false' : 'true';
+      }
+    }
+  };
+
+  // Update keyboard colors based on all feedback
+  const updateKeyboardColors = () => {
+    const colorMap = {};
+    const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
+    
+    // Aggregate feedback from all attempts
+    if (gameHistory.feedbacks && gameHistory.feedbacks.length > 0) {
+      for (let attemptIdx = 0; attemptIdx < gameHistory.feedbacks.length; attemptIdx++) {
+        const fbRows = gameHistory.feedbacks[attemptIdx];
+        const attemptRows = gameHistory.attempts[attemptIdx];
+        
+        for (let rowIdx = 0; rowIdx < fbRows.length; rowIdx++) {
+          const fbRow = fbRows[rowIdx];  // fbRow is a string like "G_YP"
+          const guessRow = attemptRows[rowIdx];  // guessRow is a string like "game"
+          
+          for (let c = 0; c < fbRow.length; c++) {
+            const revealedKey = `${rowIdx},${c}`;
+            if (gameHistory.revealed.has(revealedKey)) {
+              continue;
+            }
+            const fbChar = fbRow.charAt(c);
+            const letter = guessRow.charAt(c).toUpperCase();
+            
+            // Keep the highest priority feedback for each letter
+            if (!colorMap[letter] || priority[fbChar] > priority[colorMap[letter]]) {
+              colorMap[letter] = fbChar;
+            }
+          }
+        }
+      }
+    }
+    
+    // Apply to keyboard
+    keyboard.querySelectorAll('.key').forEach((key) => {
+      const keyData = key.dataset.key;
+      if (keyData && keyData.length === 1) {
+        key.classList.remove('correct', 'present', 'elsewhere', 'absent');
+        const fb = colorMap[keyData];
+        if (fb) {
+          if (fb === 'G') key.classList.add('correct');
+          else if (fb === 'Y') key.classList.add('present');
+          else if (fb === 'P') key.classList.add('elsewhere');
+          else if (fb === '_') key.classList.add('absent');
+        }
+      }
+    });
+    
+    forceColors();
+  };
 
   // focus first editable tile
   const firstEditable = boardInputs.find(i => i.contentEditable === 'true');
@@ -160,15 +701,9 @@ document.addEventListener('DOMContentLoaded', function(){
   };
 
   const submitGuess = () => {
-    for (let r = 0; r < 4; r++) {
-      let txt = '';
-      for (let c = 0; c < 4; c++) {
-        const idx = r*4 + c;
-        txt += (boardInputs[idx].textContent || ' ');
-      }
-      document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
-    }
-    form.submit();
+    // Trigger the form's submit event (which will run our event listener)
+    // instead of calling form.submit() which bypasses the event
+    form.dispatchEvent(new Event('submit', { bubbles: true }));
   };
 
   const updateKeyboardFromBoard = () => {
@@ -420,21 +955,93 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  form.addEventListener('submit', (e) => {
-    for (let r = 0; r < 4; r++) {
-      let txt = '';
-      for (let c = 0; c < 4; c++) {
-        const idx = r*4 + c;
-        txt += (boardInputs[idx].textContent || ' ');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      // Gather the current guess from board tiles
+      const guessRows = [];
+      for (let r = 0; r < 4; r++) {
+        let txt = '';
+        for (let c = 0; c < 4; c++) {
+          const idx = r*4 + c;
+          txt += (boardInputs[idx].textContent || ' ');
+        }
+        guessRows.push(txt.toLowerCase());
       }
-      // Keep spaces as-is, only lowercase letters (don't remove spaces)
-      document.getElementById(`row${r}-hidden`).value = txt.toLowerCase();
+      
+      // Validate guess is 4 characters per row (can include spaces from blank tiles)
+      const isValid = guessRows.every(row => row.length === 4);
+      if (!isValid) {
+        console.warn('⚠️ Invalid guess - must be 4 characters per row.');
+        return;
+      }
+
+      // Compute feedback client-side
+      const feedback = computeFullFeedback(guessRows, cube, gameHistory.revealed, gameHistory.attempts, gameHistory.feedbacks);
+      
+      // Add to local history
+      gameHistory.attempts.push(guessRows);
+      gameHistory.feedbacks.push(feedback);
+      
+      // Apply feedback to board immediately (instant visual feedback)
+      applyFeedbackToBoard(guessRows, feedback, boardInputs);
+      updateKeyboardColors();
+
+      appendAttempt(guessRows, feedback);
+
+      // Check solved state client-side
+      const isSolvedNow = feedback.every(row => row === 'GGGG');
+      if (isSolvedNow && !gameHistory.solved) {
+        gameHistory.solved = true;
+        showSolvedUI();
+      }
+
+      // Focus the first editable tile for the next guess
+      const nextEditable = boardInputs.find(i => i.contentEditable === 'true');
+      if (nextEditable) {
+        nextEditable.focus();
+        lastFocusedInput = nextEditable;
+      }
+      
+      // Populate hidden form fields and submit to server
+      for (let r = 0; r < 4; r++) {
+        document.getElementById(`row${r}-hidden`).value = guessRows[r];
+      }
+      
+      // Submit form to server (async). If offline or failed, queue for later.
+      if (navigator && navigator.onLine === false) {
+        OfflineQueue.add(guessRows, feedback);
+        return;
+      }
+
+      fetch('{{ url_for("guess") }}', {
+        method: 'POST',
+        body: new FormData(form)
+      }).then(response => {
+        if (response.ok) {
+          // Try to sync any pending guesses after successful submission
+          syncPendingGuesses();
+        } else {
+          OfflineQueue.add(guessRows, feedback);
+        }
+      }).catch(() => {
+        OfflineQueue.add(guessRows, feedback);
+      });
+    } catch (error) {
+      console.error('💥 CRITICAL ERROR in form submit:', error);
+      console.error(error.stack);
     }
-    // allow form to submit normally
   });
 
   updateKeyboardFromBoard();
   forceColors();
+
+  // Initialize offline-first features
+  console.log('🚀 Wordcube game initialized');
+  startSyncScheduler();
+  
+  // Sync any pending guesses that exist from before (e.g., page was closed while offline)
+  syncPendingGuesses().catch(e => console.error('Initial sync failed:', e));
 
   if (timer) {
     const timerValue = document.getElementById('timer-value');
@@ -461,82 +1068,15 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  if (celebrationCanvas) {
-    const ctx = celebrationCanvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const colors = ['#6aaa64', '#c9b458', '#b366cc', '#111827', '#3b82f6'];
-    let particles = [];
-    let startTime = performance.now();
-
-    const resize = () => {
-      celebrationCanvas.width = Math.floor(window.innerWidth * dpr);
-      celebrationCanvas.height = Math.floor(window.innerHeight * dpr);
-      celebrationCanvas.style.width = `${window.innerWidth}px`;
-      celebrationCanvas.style.height = `${window.innerHeight}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    const spawnBurst = (x, y) => {
-      const count = 40;
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 2 + Math.random() * 3;
-        particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 0,
-          maxLife: 60 + Math.random() * 30,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          size: 2 + Math.random() * 2
-        });
-      }
-    };
-
-    const tick = () => {
-      const now = performance.now();
-      const elapsed = now - startTime;
-      ctx.clearRect(0, 0, celebrationCanvas.width, celebrationCanvas.height);
-      if (elapsed < 2200 && Math.random() < 0.12) {
-        const x = 60 + Math.random() * (window.innerWidth - 120);
-        const y = 80 + Math.random() * (window.innerHeight * 0.4);
-        spawnBurst(x, y);
-      }
-
-      particles = particles.filter(p => p.life < p.maxLife);
-      for (const p of particles) {
-        p.life += 1;
-        p.vy += 0.04;
-        p.x += p.vx;
-        p.y += p.vy;
-        const alpha = 1 - p.life / p.maxLife;
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      if (elapsed < 2600 || particles.length > 0) {
-        requestAnimationFrame(tick);
-      } else {
-        celebrationCanvas.style.display = 'none';
-      }
-    };
-
-    resize();
-    window.addEventListener('resize', resize);
-    spawnBurst(window.innerWidth / 2, window.innerHeight / 3);
-    requestAnimationFrame(tick);
+  if (gameHistory.solved) {
+    showSolvedUI();
   }
 });
 </script>
 
 <h3>Attempts</h3>
 {% if attempts %}
-  <div class="attempts">
+  <div class="attempts" id="attempts-container">
   {% for _guess in attempts %}
     {% set aidx = loop.index0 %}
     <div class="attempt-grid">
@@ -565,7 +1105,8 @@ document.addEventListener('DOMContentLoaded', function(){
   {% endfor %}
   </div>
 {% else %}
-  <p>No attempts yet.</p>
+  <div class="attempts" id="attempts-container"></div>
+  <p id="no-attempts-msg">No attempts yet.</p>
 {% endif %}
 
 <script>
@@ -616,29 +1157,29 @@ if (!localStorage.getItem('wordcube-seen-welcome')) {
 }
 
 function shareResult() {
-  // Get attempts and feedbacks from page data
-  const gameHistory = {
-    attempts: {{ attempts | tojson }},
-    feedbacks: {{ feedbacks | tojson }},
-    revealed: {{ revealed | tojson }},
-    start_time: {{ start_time }},
-    end_time: {{ end_time }}
-  };
+  try {
+  // Use live game history from client
+  const revealedSet = gameHistory.revealed instanceof Set
+    ? gameHistory.revealed
+    : new Set({{ revealed | tojson }}.map(([r, c]) => `${r},${c}`));
 
-  // Convert revealed array to Set for O(1) lookup
-  const revealedSet = new Set(gameHistory.revealed.map(([r, c]) => `${r},${c}`));
+  if (!gameHistory.attempts || gameHistory.attempts.length === 0) {
+    alert('No attempts to share yet.');
+    return;
+  }
 
   // Create emoji grid
   let emojiGrid = '';
   for (let a = 0; a < gameHistory.attempts.length; a++) {
-    const fb = gameHistory.feedbacks[a];
+    const fb = gameHistory.feedbacks[a] || ['____', '____', '____', '____'];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
         // Check if this tile is a revealed (given) tile
         if (revealedSet.has(`${r},${c}`)) {
           emojiGrid += '⬛';
         } else {
-          const fbChar = fb[r][c];
+          const fbRow = fb[r] || '____';
+          const fbChar = fbRow.charAt(c) || '_';
           if (fbChar === 'G') {
             emojiGrid += '🟩';
           } else if (fbChar === 'Y') {
@@ -656,11 +1197,12 @@ function shareResult() {
   }
 
   // Calculate time
-  let endTime = gameHistory.end_time;
-  if (!endTime || endTime === null) {
+  let endTime = {{ end_time | tojson }};
+  if (!endTime) {
     endTime = Date.now() / 1000; // Use current time if end_time not set
   }
-  const timeSeconds = (endTime - gameHistory.start_time);
+  const startTime = {{ start_time | tojson }} || (Date.now() / 1000);
+  const timeSeconds = (endTime - startTime);
   const mins = Math.floor(timeSeconds / 60);
   const secs = Math.floor(timeSeconds % 60);
   const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
@@ -673,19 +1215,62 @@ function shareResult() {
   let title = gameMode === 'daily' ? 'Daily Cube' : 'Custom Game';
   const shareText = `Word Cube ${title}\n\n${emojiGrid}\nAttempts: ${attemptsCount}\nTime: ${timeStr}\n\nPlay at: wordcubegame.com`;
 
-  // Copy to clipboard
-  navigator.clipboard.writeText(shareText).then(() => {
-    // Show feedback
+  const showCopied = () => {
     const btn = document.getElementById('share-btn');
+    if (!btn) return;
     const originalText = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => {
       btn.textContent = originalText;
     }, 2000);
-  }).catch(err => {
-    console.error('Failed to copy:', err);
-    alert('Failed to copy to clipboard');
-  });
+  };
+
+  const execCopy = () => {
+    const textarea = document.createElement('textarea');
+    textarea.value = shareText;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    textarea.setAttribute('readonly', '');
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    let success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch (e) {
+      success = false;
+    }
+    document.body.removeChild(textarea);
+    return success;
+  };
+
+  // Prefer Clipboard API on HTTPS, fall back to execCommand
+  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareText).then(() => {
+      showCopied();
+    }).catch(() => {
+      const ok = execCopy();
+      if (ok) {
+        showCopied();
+      } else {
+        alert('Copy failed. Please try again.');
+      }
+    });
+    return;
+  }
+
+  // Non-HTTPS: try execCommand as best-effort
+  if (execCopy()) {
+    showCopied();
+    return;
+  }
+
+  alert('Copy failed. Please try again.');
+  } catch (err) {
+    console.error('Share failed:', err);
+    alert('Share failed. Please try again.');
+  }
 }
 </script>
 
