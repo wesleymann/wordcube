@@ -11,12 +11,12 @@
     <p><span class="example-tile present">P</span> <strong>Purple:</strong> Letter exists in the same row or column, but wrong position</p>
     <p><span class="example-tile elsewhere">Y</span> <strong>Yellow:</strong> Letter exists elsewhere on the grid (not in same row/column)</p>
     <p>Good luck!</p>
-    <button onclick="closeWelcome()">Start Playing</button>
+    <button class="modal-button" tabindex="-1">Start Playing</button>
   </div>
 </div>
 
 <div class="game-meta">
-  <button class="help-button" onclick="toggleWelcome()" aria-label="Show help">?</button>
+  <button class="help-button" id="help-btn" aria-label="Show help" tabindex="-1">?</button>
   <div class="game-links">
     <a href="{{ url_for('new_game') }}">Play Random Cube</a>
     <span class="sep">|</span>
@@ -581,12 +581,34 @@ function toggleWelcome() {
   modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
 }
 
-// Close modal when clicking overlay (outside modal)
-document.getElementById('welcome-modal').addEventListener('click', (e) => {
-  if (e.target.id === 'welcome-modal') {
+// Help button uses mousedown to prevent focus stealing
+const helpBtn = document.getElementById('help-btn');
+if (helpBtn) {
+  helpBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    toggleWelcome();
+  });
+}
+
+// Modal Start Playing button
+const modalBtn = document.querySelector('.modal-button');
+if (modalBtn) {
+  modalBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
     closeWelcome();
-  }
-});
+  });
+}
+
+// Close modal when clicking overlay (outside modal) - use mousedown
+const welcomeModal = document.getElementById('welcome-modal');
+if (welcomeModal) {
+  welcomeModal.addEventListener('mousedown', (e) => {
+    if (e.target.id === 'welcome-modal') {
+      e.preventDefault();
+      closeWelcome();
+    }
+  });
+}
 
 // Check if user has seen the welcome modal
 if (!localStorage.getItem('wordcube-seen-welcome')) {
