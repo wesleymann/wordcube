@@ -90,7 +90,7 @@
   Time: <span id="timer-value">00:00</span>
 </div>
 
-<canvas id="celebration-canvas" aria-hidden="true" style="display: none; pointer-events: none;"></canvas>
+<canvas id="celebration-canvas" aria-hidden="true" style="display: {{ 'block' if solved else 'none' }}; pointer-events: none;"></canvas>
 
 <form id="guess-form" method="post" action="{{ url_for('guess') }}">
   <!-- hidden row fields populated by JS from board inputs -->
@@ -532,6 +532,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const showSolvedUI = () => {
     if (solvedBanner) solvedBanner.style.display = 'block';
+    startCelebration();
   };
 
   const appendAttempt = (guessRows, feedback) => {
