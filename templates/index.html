@@ -1056,11 +1056,41 @@ document.addEventListener('DOMContentLoaded', function(){
     };
 
     if (!isNaN(start)) {
+      let pausedAt = null;
+      let pausedTotal = 0;
+
       const update = () => {
-        const now = isNaN(end) ? (Date.now() / 1000) : end;
-        const elapsed = Math.max(0, now - start);
+        if (!isNaN(end)) {
+          const elapsed = Math.max(0, end - start);
+          timerValue.textContent = formatTime(elapsed);
+          return;
+        }
+
+        if (pausedAt !== null) {
+          return;
+        }
+
+        const now = Date.now() / 1000;
+        const elapsed = Math.max(0, now - start - pausedTotal);
         timerValue.textContent = formatTime(elapsed);
       };
+
+      const handleVisibility = () => {
+        if (document.hidden) {
+          if (pausedAt === null && isNaN(end)) {
+            pausedAt = Date.now() / 1000;
+          }
+        } else {
+          if (pausedAt !== null && isNaN(end)) {
+            const now = Date.now() / 1000;
+            pausedTotal += now - pausedAt;
+            pausedAt = null;
+            update();
+          }
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibility);
 
       update();
       if (isNaN(end)) {
