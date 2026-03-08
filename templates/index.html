@@ -390,6 +390,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const shareTextArea = document.getElementById('share-text');
   const shareCopyBtn = document.getElementById('share-copy-btn');
   const shareCloseBtn = document.getElementById('share-close-btn');
+  let stopTimer = null;
 
   const openShareModal = (text) => {
     if (!shareModal || !shareTextArea) return;
@@ -995,6 +996,9 @@ document.addEventListener('DOMContentLoaded', function(){
       if (isSolvedNow && !gameHistory.solved) {
         gameHistory.solved = true;
         showSolvedUI();
+        if (typeof stopTimer === 'function') {
+          stopTimer();
+        }
       }
 
       // Focus the first editable tile for the next guess
@@ -1047,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function(){
   if (timer) {
     const timerValue = document.getElementById('timer-value');
     const start = parseFloat(timer.dataset.start);
-    const end = parseFloat(timer.dataset.end);
+    let endTime = parseFloat(timer.dataset.end);
 
     const formatTime = (seconds) => {
       const mins = Math.floor(seconds / 60);
@@ -1060,8 +1064,8 @@ document.addEventListener('DOMContentLoaded', function(){
       let pausedTotal = 0;
 
       const update = () => {
-        if (!isNaN(end)) {
-          const elapsed = Math.max(0, end - start);
+        if (!isNaN(endTime)) {
+          const elapsed = Math.max(0, endTime - start);
           timerValue.textContent = formatTime(elapsed);
           return;
         }
@@ -1077,11 +1081,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
       const handleVisibility = () => {
         if (document.hidden) {
-          if (pausedAt === null && isNaN(end)) {
+          if (pausedAt === null && isNaN(endTime)) {
             pausedAt = Date.now() / 1000;
           }
         } else {
-          if (pausedAt !== null && isNaN(end)) {
+            if (pausedAt !== null && isNaN(endTime)) {
             const now = Date.now() / 1000;
             pausedTotal += now - pausedAt;
             pausedAt = null;
@@ -1093,14 +1097,30 @@ document.addEventListener('DOMContentLoaded', function(){
       document.addEventListener('visibilitychange', handleVisibility);
 
       update();
-      if (isNaN(end)) {
-        setInterval(update, 500);
+      stopTimer = (ts) => {
+        if (isNaN(endTime)) {
+          endTime = typeof ts === 'number' ? ts : (Date.now() / 1000);
+          timer.dataset.end = String(endTime);
+        }
+        update();
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      };
+
+      let intervalId = null;
+      if (isNaN(endTime)) {
+        intervalId = setInterval(update, 500);
       }
     }
   }
 
   if (gameHistory.solved) {
     showSolvedUI();
+    if (typeof stopTimer === 'function') {
+      stopTimer();
+    }
   }
 });
 </script>
