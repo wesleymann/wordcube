@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 CUR_DIR = Path('.')
-CANDIDATE = CUR_DIR / 'word_lists' / 'word_cubes.txt'
-CUBES_FILE = CANDIDATE if CANDIDATE.exists() else (CUR_DIR / 'word_cubes.txt')
+CANDIDATE = CUR_DIR / 'word_lists' / 'answer_key_final_update_vowels.txt'
+CUBES_FILE = CANDIDATE if CANDIDATE.exists() else (CUR_DIR / 'answer_key_final_update_vowels.txt')
 
 WL_CAND = CUR_DIR / 'word_lists' / 'word_list_wordfreq.txt'
 WORDLIST_FILE = WL_CAND if WL_CAND.exists() else (CUR_DIR / 'word_list_wordfreq.txt')
@@ -126,7 +126,7 @@ def main():
 
     cubes = load_cubes()
     if not cubes:
-        print('No `word_cubes.txt` found or it contained no cubes. Run main2.py to generate cubes first.')
+        print('No `answer_key_final_update_vowels.txt` found or it contained no cubes.')
         sys.exit(1)
 
     cube = random.choice(cubes)

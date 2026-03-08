@@ -16,8 +16,8 @@ Purpose: Quickly orient an AI coding assistant to this small Flask-based word-cu
 - Cube in-memory: list of 4 lowercase strings (each length 4). e.g. [`'game','area','made','edge'`].
 - `revealed`: stored as a list of (row, col) pairs; templates expect tuples like `(r,c)`.
 - `load_cubes()` strips spaces and lowercases rows; file format is space-separated letters per row and blank-line separated cubes.
-- Feedback API: functions return 4-char strings using `'G'` (green/correct), `'Y'` (purple/same row or column), `'P'` (yellow/elsewhere), `'_'` (absent). See `compute_feedback` in [app.py](app.py) and `feedback` in [wordcube_game.py](wordcube_game.py).
-- Feedback colors: `'G'` = green (correct position), `'Y'` = purple (same row/column), `'P'` = yellow (elsewhere on grid), `'_'` = white (absent).
+- Feedback API: functions return 4-char strings using `'G'` (green/correct), `'P'` (purple/same row or column), `'Y'` (yellow/elsewhere), `'_'` (absent). See `compute_feedback` in [app.py](app.py) and `feedback` in [wordcube_game.py](wordcube_game.py).
+- Feedback colors: `'G'` = green (correct position), `'P'` = purple (same row/column), `'Y'` = yellow (elsewhere on grid), `'_'` = white (absent).
 
 **Key files to inspect when changing behavior**
 - `app.py` — Flask routes, session management, `compute_feedback`, form handling (`/guess` expects hidden `row0..row3`).

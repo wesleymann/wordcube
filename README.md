@@ -8,7 +8,7 @@ Layout
 - `static/`, `templates/` — frontend assets.
 - `generators/` — helper scripts to create word lists and cubes:
   - `generators/generate_word_list.py` — produce `word_lists/word_list_wordfreq.txt` using `wordfreq`.
-  - `generators/generate_cubes.py` — build `word_lists/word_cubes.txt` from a word list.
+  - `generators/generate_cubes.py` — build `word_lists/answer_key_final_update_vowels.txt` from a word list.
 - `word_lists/` — (optional) place to store word-list and generated cube files. The app and CLI prefer files here if present but fall back to root filenames for compatibility.
 
 Quick start

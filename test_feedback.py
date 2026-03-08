@@ -35,10 +35,10 @@ def test_multiple_letter_instances():
     
     fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 1b - Guess 'xaxx' for row 1 (solution 'area'), A at (0,1) already found: {fb}")
-    # Position 1 has 'a' but solution wants 'r', so should be yellow
+    # Position 1 has 'a' but solution wants 'r', so should be purple
     # A still appears at (1,0), (1,2), (2,1), (3,1) - (0,1) is found
-    # So this A should be yellow (in same row)
-    assert fb[1] == 'Y', f"Expected position 1 to be 'Y', got '{fb[1]}'"
+    # So this A should be purple (in same row)
+    assert fb[1] == 'P', f"Expected position 1 to be 'P', got '{fb[1]}'"
     
     # Test 1c: A at (0,1) and (1,1) are now found. Guess A in position 0
     attempts = [['mask', 'xxxx', 'xxxx', 'xxxx'], ['xxxx', 'xaxx', 'xxxx', 'xxxx']]
@@ -102,7 +102,7 @@ def test_letter_not_on_board():
 
 
 def test_remaining_positions_only_elsewhere():
-    """Test: Letter exists but remaining instances are not in same row/col, should be purple"""
+    """Test: Letter exists but remaining instances are not in same row/col, should be yellow"""
     cube = [
         'slot',
         'pope',
@@ -122,8 +122,8 @@ def test_remaining_positions_only_elsewhere():
 
     fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 2b - Guess 'xtxx' with remaining T elsewhere: {fb}")
-    # T should be purple because only remaining T is elsewhere
-    assert fb[1] == 'P', f"Expected position 1 to be 'P', got '{fb[1]}'"
+    # T should be yellow because only remaining T is elsewhere
+    assert fb[1] == 'Y', f"Expected position 1 to be 'Y', got '{fb[1]}'"
 
 
 def test_all_instances_found():
@@ -180,8 +180,8 @@ def test_revealed_positions():
     
     fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 4 - Guess 'xmxx' with M revealed elsewhere: {fb}")
-    # M is in wrong position but in same row, should be yellow
-    assert fb == '_Y__', f"Expected '_Y__', got '{fb}'"
+    # M is in wrong position but in same row, should be purple
+    assert fb == '_P__', f"Expected '_P__', got '{fb}'"
 
 
 def test_yellow_in_same_row():
@@ -203,7 +203,7 @@ def test_yellow_in_same_row():
     fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 5 - Guess 'smxx' for 'mask': {fb}")
     # S is in row (position 2), M is in row (position 0)
-    assert fb == 'YY__', f"Expected 'YY__', got '{fb}'"
+    assert fb == 'PP__', f"Expected 'PP__', got '{fb}'"
 
 
 def test_purple_elsewhere():
@@ -227,7 +227,7 @@ def test_purple_elsewhere():
     fb = compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts, feedbacks, [])
     print(f"Test 6 - Guess 'nxxx' for 'mask': {fb}")
     # N is elsewhere (row 2, col 2), not in row 0 or col 0
-    assert fb == 'P___', f"Expected 'P___', got '{fb}'"
+    assert fb == 'Y___', f"Expected 'Y___', got '{fb}'"
 
 
 def test_submission_order_greens():

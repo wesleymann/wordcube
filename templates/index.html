@@ -64,10 +64,10 @@
             {% set fbchar = fb_row[c] if fb_row|length > c else '_' %}
             {% if fbchar == 'G' %}
               <div class="board-input correct" contenteditable="false" data-fb="G">{{ letter }}</div>
-            {% elif fbchar == 'Y' %}
-              <div class="board-input present" contenteditable="true" data-fb="Y" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
             {% elif fbchar == 'P' %}
-              <div class="board-input elsewhere" contenteditable="true" data-fb="P" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
+              <div class="board-input present" contenteditable="true" data-fb="P" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
+            {% elif fbchar == 'Y' %}
+              <div class="board-input elsewhere" contenteditable="true" data-fb="Y" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
             {% else %}
               {# show the previous guessed letter in black so it's visible on next guess #}
               <div class="board-input absent" contenteditable="true" data-fb="_" inputmode="none" virtualkeyboardpolicy="manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">{{ letter }}</div>
@@ -206,14 +206,14 @@ function computeFeedback(guessRow, solutionRow, rowIdx, allAttempts, allFeedback
     }
     
     if (inRow || inCol) {
-      result[i] = 'Y';
+      result[i] = 'P';
     }
   }
   
   // PASS 3: Mark purple (exists elsewhere on grid, not in same row/col, not green, not yellow)
   for (let i = 0; i < 4; i++) {
     const ch = guessRow[i] || ' ';
-    if (ch === ' ' || result[i] === 'G' || result[i] === 'Y') continue;
+    if (ch === ' ' || result[i] === 'G' || result[i] === 'P') continue;
     
     const revealedKey = `${rowIdx},${i}`;
     if (revealedSet.has(revealedKey)) {
@@ -236,7 +236,7 @@ function computeFeedback(guessRow, solutionRow, rowIdx, allAttempts, allFeedback
       }
     }
     
-    result[i] = foundElsewhere ? 'P' : '_';
+    result[i] = foundElsewhere ? 'Y' : '_';
   }
   
   return result.join('');
@@ -560,9 +560,9 @@ document.addEventListener('DOMContentLoaded', function(){
           cls = 'revealed';
         } else if (fb === 'G') {
           cls = 'correct';
-        } else if (fb === 'Y') {
-          cls = 'present';
         } else if (fb === 'P') {
+          cls = 'present';
+        } else if (fb === 'Y') {
           cls = 'elsewhere';
         }
 
@@ -600,11 +600,11 @@ document.addEventListener('DOMContentLoaded', function(){
           tile.classList.add('correct');
           tile.style.backgroundColor = 'rgb(16, 185, 129)';
           tile.style.color = '#ffffff';
-        } else if (fbChar === 'Y') {
+        } else if (fbChar === 'P') {
           tile.classList.add('present');
           tile.style.backgroundColor = 'rgb(168, 85, 247)';
           tile.style.color = '#ffffff';
-        } else if (fbChar === 'P') {
+        } else if (fbChar === 'Y') {
           tile.classList.add('elsewhere');
           tile.style.backgroundColor = 'rgb(234, 179, 8)';
           tile.style.color = '#ffffff';
@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // Update keyboard colors based on all feedback
   const updateKeyboardColors = () => {
     const colorMap = {};
-    const priority = { 'G': 3, 'Y': 2, 'P': 1, '_': 0 };
+    const priority = { 'G': 3, 'P': 2, 'Y': 1, '_': 0 };
     
     // Aggregate feedback from all attempts
     if (gameHistory.feedbacks && gameHistory.feedbacks.length > 0) {
@@ -660,8 +660,8 @@ document.addEventListener('DOMContentLoaded', function(){
         const fb = colorMap[keyData];
         if (fb) {
           if (fb === 'G') key.classList.add('correct');
-          else if (fb === 'Y') key.classList.add('present');
-          else if (fb === 'P') key.classList.add('elsewhere');
+          else if (fb === 'P') key.classList.add('present');
+          else if (fb === 'Y') key.classList.add('elsewhere');
           else if (fb === '_') key.classList.add('absent');
         }
       }
@@ -719,8 +719,8 @@ document.addEventListener('DOMContentLoaded', function(){
       const state = keyboard_state[k];
       if (state) {
         if (state.fb === 'G') key.classList.add('correct');
-        else if (state.fb === 'Y') key.classList.add('present');
-        else if (state.fb === 'P') key.classList.add('elsewhere');
+        else if (state.fb === 'P') key.classList.add('present');
+        else if (state.fb === 'Y') key.classList.add('elsewhere');
         else if (state.fb === '_') key.classList.add('absent');
       }
     });
@@ -780,8 +780,8 @@ document.addEventListener('DOMContentLoaded', function(){
     // initialize class based on data-fb
     const fb = inp.dataset.fb || '_';
     if (fb === 'G') { inp.classList.add('correct'); }
-    else if (fb === 'Y') { inp.classList.add('present'); }
-    else if (fb === 'P') { inp.classList.add('elsewhere'); }
+    else if (fb === 'P') { inp.classList.add('present'); }
+    else if (fb === 'Y') { inp.classList.add('elsewhere'); }
     else { inp.classList.add('absent'); }
 
     // Position cursor at end when focused
@@ -1123,9 +1123,9 @@ document.addEventListener('DOMContentLoaded', function(){
               {% set cls = 'revealed' %}
             {% elif fb == 'G' %}
               {% set cls = 'correct' %}
-            {% elif fb == 'Y' %}
-              {% set cls = 'present' %}
             {% elif fb == 'P' %}
+              {% set cls = 'present' %}
+            {% elif fb == 'Y' %}
               {% set cls = 'elsewhere' %}
             {% endif %}
             <div class="attempt-tile {{ cls }}">{{ letter }}</div>

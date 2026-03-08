@@ -11,8 +11,8 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 # expose Python builtin helpers to Jinja templates (safe convenience)
 app.jinja_env.globals['enumerate'] = enumerate
 
-CANDIDATE_CUBES = os.path.join('word_lists', 'word_cubes.txt')
-CUBES_FILE = CANDIDATE_CUBES if os.path.exists(CANDIDATE_CUBES) else 'word_cubes.txt'
+CANDIDATE_CUBES = os.path.join('word_lists', 'answer_key_final_update_vowels.txt')
+CUBES_FILE = CANDIDATE_CUBES if os.path.exists(CANDIDATE_CUBES) else 'answer_key_final_update_vowels.txt'
 MAX_ATTEMPTS = 6
 
 CUBES_CACHE = None
@@ -115,7 +115,7 @@ def start_daily_game():
     global DAILY_CUBES_CACHE
     cubes = get_cubes()
     if not cubes:
-        return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
+        return "No cubes found. Please check word_lists/answer_key_final_update_vowels.txt", 500
 
     # Stricter blocklist for daily cube
     daily_blocklist = ['anal', 'anus', 'cock', 'damn', 'hell', 'slut', 'dick', 'fuck', 'shit', 'cunt', 'whore']
@@ -152,8 +152,8 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
     """
     Three-pass feedback logic:
     Pass 1 (Green): Mark all letters that are correct at this position
-    Pass 2 (Yellow): Mark letters that are NOT green, AND match elsewhere in same row/column, AND that instance is not already green
-    Pass 3 (Purple): Mark letters that are NOT green/yellow, BUT exist somewhere on the puzzle
+    Pass 2 (Purple): Mark letters that are NOT green, AND match elsewhere in same row/column, AND that instance is not already green
+    Pass 3 (Yellow): Mark letters that are NOT green/purple, BUT exist somewhere on the puzzle
     Revealed positions are shown as '_' (absent/black) regardless of feedback type.
     """
     result = ['_'] * 4
@@ -185,7 +185,7 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
             result[i] = 'G'
             all_greens.add((row_idx, i))
     
-    # PASS 2: Mark yellow (in same row or column, but not green, AND not all instances matched)
+    # PASS 2: Mark purple (in same row or column, but not green, AND not all instances matched)
     for i, ch in enumerate(guess):
         if ch == ' ' or result[i] == 'G':
             continue
@@ -209,11 +209,11 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
                 break
         
         if in_row or in_col:
-            result[i] = 'Y'
+            result[i] = 'P'
     
-    # PASS 3: Mark purple (exists on puzzle, but not in same row/col, not green, not yellow)
+    # PASS 3: Mark yellow (exists on puzzle, but not in same row/col, not green, not purple)
     for i, ch in enumerate(guess):
-        if ch == ' ' or result[i] in ['G', 'Y']:
+        if ch == ' ' or result[i] in ['G', 'P']:
             continue
         
         # Check if letter exists anywhere else on the grid (not in same row/col, not revealed, not already green)
@@ -221,7 +221,7 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
         for r in range(4):
             for c in range(4):
                 if cube[r][c] == ch and (r, c) not in revealed_set and (r, c) not in all_greens:
-                    # Skip current position and same row/col (those were checked in yellow)
+                    # Skip current position and same row/col (those were checked in purple)
                     if r == row_idx or c == i:
                         continue
                     found_elsewhere = True
@@ -229,7 +229,7 @@ def compute_feedback_enhanced(guess, solution, cube, row_idx, revealed, attempts
             if found_elsewhere:
                 break
         
-        result[i] = 'P' if found_elsewhere else '_'
+        result[i] = 'Y' if found_elsewhere else '_'
     
     return ''.join(result)
 
@@ -263,7 +263,7 @@ def index():
     
     # Compute final keyboard state server-side to avoid sending all attempts
     keyboard_state = {}  # letter -> ('G', 'Y', 'P', or '_')
-    priority = {'G': 3, 'Y': 2, 'P': 1, '_': 0}
+    priority = {'G': 3, 'P': 2, 'Y': 1, '_': 0}
     revealed_set = revealed
     if attempts and feedbacks:
         for attempt_idx, attempt in enumerate(attempts):
@@ -310,7 +310,7 @@ def new_game():
     global RANDOM_CUBES_CACHE
     cubes = get_cubes()
     if not cubes:
-        return "No cubes found. Please run main2.py to generate word_cubes.txt", 500
+        return "No cubes found. Please check word_lists/answer_key_final_update_vowels.txt", 500
     
     # Less strict blocklist for random games
     random_blocklist = ['dick', 'fuck', 'shit', 'cunt', 'whore']
